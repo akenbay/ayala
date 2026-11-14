@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SCENARIOS, describe, type ScenarioId } from "@/lib/scenarios";
 import type { CheckResult, Dimension, Scorecard } from "@/lib/rubric/types";
 import { MAX_CHARS } from "@/lib/rubric/validate";
@@ -17,6 +17,7 @@ import {
   type Attempt,
   type AttemptKind,
   type Turn,
+  weakestDimension,
 } from "@/lib/storage";
 import {
   CDC_URL,
@@ -32,8 +33,10 @@ import {
 import { codeCoach, type Coach } from "@/lib/coach";
 import type { Crisis } from "@/lib/safety";
 import { CrisisCard } from "@/components/CrisisCard";
+import { PlanPicker } from "@/components/PlanPicker";
+import { DIMENSION_LABELS } from "@/lib/rubric/types";
 import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
-import { Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
+import { Mic, Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 
 
 const LINK_ALIASES: Record<string, ScenarioId> = {
@@ -105,7 +108,7 @@ function verdict(card: Scorecard): string {
 }
 
 type Msg = { role: "child" | "parent"; text: string; card?: Scorecard; state?: SamState };
-type Step = "chat" | "score" | "compare" | "done";
+type Step = "chat" | "score" | "compare" | "paywall" | "done";
 
 export default function PracticePage() {
   const router = useRouter();
@@ -218,6 +221,9 @@ export default function PracticePage() {
       if (planDay && kind === "first") {
         s.plan = s.plan.map((p) => (p.day === planDay ? { ...p, done: true } : p));
         s.currentPlanDay = null;
+      } else if (kind === "first" && s.plan.length && !s.plan.some((p) => p.done)) {
+        // The first finished practice counts as day 1 of the plan.
+        s.plan = s.plan.map((p) => (p.day === 1 ? { ...p, done: true } : p));
       }
     });
     setStep(kind === "first" ? "score" : kind === "retry" ? "compare" : "done");
@@ -305,8 +311,22 @@ export default function PracticePage() {
         )}
 
         {step === "compare" && results.first && results.retry && (
-          <Compare a={results.first} b={results.retry} coach={coaches.retry} scenarioId={scenarioId} onTransfer={() => startChat("transfer")} />
+          <Compare
+            a={results.first}
+            b={results.retry}
+            coach={coaches.retry}
+            scenarioId={scenarioId}
+            onTransfer={() => {
+              if (store?.unlocked) startChat("transfer");
+              else {
+                setStep("paywall");
+                window.scrollTo({ top: 0 });
+              }
+            }}
+          />
         )}
+
+        {step === "paywall" && store && <Paywall onContinue={() => startChat("transfer")} />}
 
         {step === "done" && results.transfer && (
           <Done first={results.first} retry={results.retry} transfer={results.transfer} coach={coaches.transfer} />
@@ -317,7 +337,8 @@ export default function PracticePage() {
 }
 
 function PracticeHeader({ title, step, kind }: { title: string; step: Step; kind: AttemptKind }) {
-  const active = step === "chat" ? (kind === "first" ? 0 : kind === "retry" ? 1 : 2) : step === "score" ? 1 : step === "compare" ? 2 : 3;
+  const active =
+    step === "chat" ? (kind === "first" ? 0 : kind === "retry" ? 1 : 2) : step === "score" ? 1 : step === "compare" || step === "paywall" ? 2 : 3;
   const labels = ["Try", "Improve", "New situation"];
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-cream px-4 pb-3.5 pt-3">
@@ -364,6 +385,58 @@ const OUTCOME: Record<SamState, { title: string; text: string; tone: string }> =
   gave_in: { title: "Sam got their way.", text: "Sam is happy for now, but the limit moved, so this moment will come back.", tone: "bg-peach" },
   resisting: { title: "Sam is still upset.", text: "Real moments can take a while. Let's see what would help most.", tone: "bg-peach" },
 };
+
+type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
+type Recognizer = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((e: SpeechResultEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function recognizerCtor(): (new () => Recognizer) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { SpeechRecognition?: new () => Recognizer; webkitSpeechRecognition?: new () => Recognizer };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+const noop = () => () => {};
+
+/** Speak instead of type, where the browser supports it (Chrome, Safari). Text appears in the box to check before sending. */
+function useVoice(onText: (t: string) => void) {
+  const supported = useSyncExternalStore(noop, () => Boolean(recognizerCtor()), () => false);
+  const [listening, setListening] = useState(false);
+  const rec = useRef<Recognizer | null>(null);
+  function toggle() {
+    if (listening) {
+      rec.current?.stop();
+      return;
+    }
+    const Ctor = recognizerCtor();
+    if (!Ctor) return;
+    const r = new Ctor();
+    r.lang = "en-US";
+    r.interimResults = false;
+    r.continuous = false;
+    r.onresult = (e) => {
+      const said = Array.from(e.results)
+        .map((x) => x[0]?.transcript ?? "")
+        .join(" ")
+        .trim();
+      if (said) onText(said);
+    };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    rec.current = r;
+    setListening(true);
+    r.start();
+  }
+  return { supported, listening, toggle };
+}
 
 function SamBubble({ text, typing = false, state }: { text?: string; typing?: boolean; state?: SamState }) {
   return (
@@ -414,6 +487,8 @@ function Chat(props: {
   const [showIdea, setShowIdea] = useState(false);
   const [pending, setPending] = useState("");
   const [crisis, setCrisis] = useState<Crisis["kind"] | null>(null);
+  const [ageOpen, setAgeOpen] = useState(false);
+  const voice = useVoice((said) => setText((t) => (t ? `${t} ${said}` : said).slice(0, MAX_CHARS)));
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
   const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
@@ -501,7 +576,36 @@ function Chat(props: {
           <span className="mt-px shrink-0">
             <ScenarioIcon id={scenarioId} size={22} />
           </span>
-          <p className="text-[17px] font-semibold leading-snug">{situation}</p>
+          <div className="flex-1">
+            <p className="text-[17px] font-semibold leading-snug">{situation}</p>
+            {parentTurns === 0 && !ownSituation && (
+              <p className="mt-1 text-[13px] text-muted">
+                Age {age},{" "}
+                {ageOpen ? (
+                  ([2, 3, 4] as Age[]).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={n === age}
+                      onClick={() => {
+                        update((st) => {
+                          st.childAge = n;
+                        });
+                        setAgeOpen(false);
+                      }}
+                      className={`mx-0.5 rounded-full px-2.5 py-1 text-[13px] font-bold ${n === age ? "bg-ink text-cream" : "bg-cream"}`}
+                    >
+                      {n}
+                    </button>
+                  ))
+                ) : (
+                  <button type="button" onClick={() => setAgeOpen(true)} className="font-semibold text-ink underline underline-offset-2">
+                    change
+                  </button>
+                )}
+              </p>
+            )}
+          </div>
         </div>
 
         {banner && (
@@ -625,6 +729,20 @@ function Chat(props: {
                 placeholder={busy === "child" ? "Wait for Sam…" : parentTurns === 0 ? "What would you say?" : "What do you say next?"}
                 className="max-h-32 min-h-[52px] flex-1 resize-none rounded-2xl border-[1.5px] border-field bg-cream px-3.5 py-3 text-[17px] leading-snug outline-none placeholder:text-[#6B6960] focus:border-ink disabled:border-line disabled:bg-[#F7F6EE]"
               />
+              {voice.supported && (
+                <button
+                  type="button"
+                  aria-label={voice.listening ? "Stop listening" : "Speak your reply"}
+                  aria-pressed={voice.listening}
+                  onClick={voice.toggle}
+                  disabled={busy !== ""}
+                  className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition ${
+                    voice.listening ? "animate-pulse border-red bg-bad-soft" : "border-field bg-white"
+                  }`}
+                >
+                  <Mic size={22} />
+                </button>
+              )}
               <button
                 type="button"
                 aria-label="Send"
@@ -637,7 +755,9 @@ function Chat(props: {
             </div>
           </>
         )}
-        <p className="mt-2 text-center text-xs text-muted">Sam is a practice character. Real children respond differently.</p>
+        <p className="mt-2 text-center text-xs text-muted">
+          {parentTurns === 0 && !transfer ? "About 2 minutes. No account needed. " : ""}Sam is a simulation. Real kids vary.
+        </p>
       </footer>
     </div>
   );
@@ -763,14 +883,27 @@ function CoachLoading() {
 }
 
 /** What happened, what to keep and what to change: all about this parent's own words. */
-function CoachNotes({ coach, showChange = true }: { coach: Coach; showChange?: boolean }) {
+type CoachPart = "summary" | "keep" | "change" | "heard";
+
+function CoachNotes({
+  coach,
+  showChange = true,
+  parts = ["summary", "keep", "change", "heard"],
+}: {
+  coach: Coach;
+  showChange?: boolean;
+  parts?: CoachPart[];
+}) {
+  const show = (p: CoachPart) => parts.includes(p);
   return (
     <section aria-label="Your coach" className="flex flex-col gap-4 rounded-2xl bg-white p-[18px]">
-      <div>
-        <span className="label-caps">What happened</span>
-        <p className="mt-1.5 text-[18px] font-semibold leading-snug">{coach.summary}</p>
-      </div>
-      {coach.keep && (
+      {show("summary") && (
+        <div>
+          <span className="label-caps">What happened</span>
+          <p className="mt-1.5 text-[18px] font-semibold leading-snug">{coach.summary}</p>
+        </div>
+      )}
+      {show("keep") && coach.keep && (
         <div className="flex gap-3">
           <span aria-hidden className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-good-line" />
           <p className="text-base leading-snug">
@@ -778,7 +911,7 @@ function CoachNotes({ coach, showChange = true }: { coach: Coach; showChange?: b
           </p>
         </div>
       )}
-      {showChange && (
+      {showChange && show("change") && (
         <div className="flex gap-3">
           <span aria-hidden className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-red" />
           <p className="text-base leading-snug">
@@ -800,8 +933,8 @@ function CoachNotes({ coach, showChange = true }: { coach: Coach; showChange?: b
           </p>
         </div>
       )}
-      {coach.heard && (
-        <div className="flex items-start gap-2.5 border-t border-line pt-3.5">
+      {show("heard") && coach.heard && (
+        <div className={`flex items-start gap-2.5 ${parts.length > 1 ? "border-t border-line pt-3.5" : ""}`}>
           <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange text-[15px] font-extrabold">
             S
           </span>
@@ -834,6 +967,7 @@ function Improved({ rewrite }: { rewrite: NonNullable<Coach["rewrite"]> }) {
   );
 }
 
+/** First feedback: one change, your improved sentence, and the retry. Everything else is one tap away. */
 function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: Coach | "loading"; onRetry: () => void }) {
   const [turnIdx, setTurnIdx] = useState(() =>
     attempt.turns.reduce((worst, t, i, arr) => (t.card.total < arr[worst].card.total ? i : worst), 0),
@@ -841,22 +975,24 @@ function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: C
   const t = attempt.turns[turnIdx];
   const c = typeof coach === "object" ? coach : null;
   return (
-    <div className="flex flex-col gap-[18px] py-6">
-      <div className="flex flex-col items-center gap-3.5 text-center">
-        <ScoreRing value={attempt.total} />
-        <OutcomeChip a={attempt} />
-        <h1 className="max-w-[320px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(t.card)}</h1>
-        {attempt.turns.length > 1 && <p className="-mt-2 text-sm text-muted">Average of your {attempt.turns.length} replies</p>}
+    <div className="flex flex-col gap-4 py-5">
+      <div className="flex items-center gap-4">
+        <ScoreRing value={attempt.total} size={84} />
+        <div className="flex flex-col items-start gap-1.5">
+          <OutcomeChip a={attempt} />
+          <h1 className="text-[22px] font-extrabold leading-tight tracking-[-0.01em]">{verdict(t.card)}</h1>
+        </div>
       </div>
 
-      {c ? <CoachNotes coach={c} /> : coach === "loading" ? <CoachLoading /> : <BiggestWin card={t.card} />}
+      {c ? <CoachNotes coach={c} parts={["change"]} /> : coach === "loading" ? <CoachLoading /> : <BiggestWin card={t.card} />}
       {c?.rewrite && <Improved rewrite={c.rewrite} />}
 
       <button type="button" className="btn-primary h-[58px] text-lg" onClick={onRetry}>
         Try again in your own words <Arrow size={20} />
       </button>
 
-      <Collapsible label="See every phrase and check">
+      <Collapsible label="More about this reply">
+        {c && <CoachNotes coach={c} parts={["summary", "keep", "heard"]} />}
         {attempt.turns.length > 1 && (
           <div className="flex justify-center gap-2" role="group" aria-label="Pick a reply">
             {attempt.turns.map((x, i) => (
@@ -872,6 +1008,84 @@ function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: C
         </div>
         <CheckList card={t.card} />
       </Collapsible>
+    </div>
+  );
+}
+
+/** One tap: would the parent really say this? A usefulness signal kept with the attempt. */
+function UsefulAsk({ attemptId }: { attemptId: string }) {
+  const [answer, setAnswer] = useState<boolean | null>(null);
+  function pick(v: boolean) {
+    setAnswer(v);
+    update((s) => {
+      s.attempts = s.attempts.map((x) => (x.id === attemptId ? { ...x, useful: v } : x));
+    });
+  }
+  return (
+    <section aria-label="Could you say this?" className="flex flex-col items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-center">
+      {answer === null ? (
+        <>
+          <p className="text-[17px] font-bold">Could you actually say this to your child?</p>
+          <div className="flex gap-2">
+            <button type="button" className="btn-orange min-w-24" onClick={() => pick(true)}>
+              Yes
+            </button>
+            <button type="button" className="btn-ghost min-w-24" onClick={() => pick(false)}>
+              Not quite
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="text-[15px] font-semibold text-soft-ink">
+          {answer ? "Great. Say it out loud once, it sticks better." : "Thanks. Make it yours: change the words until they sound like you."}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Shown right after the first before and after, the earliest moment the value is real. "Not now" stays free. */
+function Paywall({ onContinue }: { onContinue: () => void }) {
+  const store = useStore();
+  if (!store) return null;
+  const focus = weakestDimension(store.attempts) ?? store.profile?.focus ?? "emotional_response";
+  const plan = store.plan.length ? store.plan : buildPlan(store.attempts, focus);
+  if (store.unlocked)
+    return (
+      <div className="flex flex-col gap-4 py-6">
+        <h1 className="text-[26px] font-extrabold">Welcome to Plus.</h1>
+        <button type="button" className="btn-primary h-14 text-lg" onClick={onContinue}>
+          Try the new situation <Arrow size={20} />
+        </button>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-4 py-5">
+      <div>
+        <span className="label-caps">Your plan</span>
+        <h1 className="mt-1 text-[28px] font-extrabold leading-tight tracking-tight">
+          7 days on {DIMENSION_LABELS[focus].toLowerCase()}
+        </h1>
+        <p className="mt-1.5 text-[17px] text-soft-ink">{FOCUS_TIPS[focus]}</p>
+      </div>
+      <ol className="grid grid-cols-7 gap-1.5" aria-label="Plan days">
+        {plan.map((p) => (
+          <li
+            key={p.day}
+            className={`flex aspect-square flex-col items-center justify-center rounded-xl text-[13px] font-bold ${
+              p.done ? "bg-good-soft text-good" : "bg-white text-muted"
+            }`}
+          >
+            {p.done ? <Check size={14} /> : p.day}
+            <span className="sr-only">{p.done ? `Day ${p.day} done` : `Day ${p.day}`}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="-mt-1 text-[15px] font-semibold">Day 1 done. Keep going with Plus: a 2 minute practice a day on your weakest skill.</p>
+      <PlanPicker onUnlocked={() => undefined} />
+      <button type="button" onClick={onContinue} className="min-h-12 text-[16px] font-semibold underline underline-offset-[3px]">
+        Not now, continue free
+      </button>
     </div>
   );
 }
@@ -897,19 +1111,29 @@ function Compare({
     .sort((x, y) => y.maxPoints - x.maxPoints);
   return (
     <div className="flex flex-col gap-[18px] py-6">
-      <div className="flex flex-col items-center gap-3.5 text-center">
-        <ScoreRing value={b.total} />
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-base font-extrabold ${
-            d > 0 ? "bg-good-soft text-good" : d < 0 ? "bg-bad-soft text-bad" : "bg-white text-ink"
-          }`}
-        >
-          {d > 0 && <ArrowUp size={16} />}
-          {d === 0 ? "Same as your first try" : `${d > 0 ? "+" : "−"}${Math.abs(d)} from your first try`}
-        </span>
+      <div className="flex flex-col items-center gap-2 text-center">
+        {d > 0 ? (
+          <>
+            <p className="flex items-center gap-1 text-[64px] font-extrabold leading-none tracking-[-0.03em] text-good">
+              <ArrowUp size={44} />+{d}
+            </p>
+            <p className="text-[17px] font-semibold text-soft-ink">
+              points from your first try ({a.total} → <b className="text-ink">{b.total}</b>)
+            </p>
+          </>
+        ) : (
+          <>
+            <ScoreRing value={b.total} size={110} />
+            <span className={`rounded-full px-3.5 py-1.5 text-base font-extrabold ${d < 0 ? "bg-bad-soft text-bad" : "bg-white"}`}>
+              {d === 0 ? "Same as your first try" : `−${Math.abs(d)} from your first try`}
+            </span>
+          </>
+        )}
         <OutcomeChip a={b} />
-        <h1 className="max-w-[320px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(tb.card)}</h1>
+        <h1 className="mt-1 max-w-[340px] text-[24px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(tb.card)}</h1>
       </div>
+
+      <UsefulAsk attemptId={b.id} />
 
       <section aria-label="Before and after" className="flex flex-col gap-2.5">
         <div className="flex flex-col gap-2 rounded-2xl border border-line bg-paper px-[18px] py-4">

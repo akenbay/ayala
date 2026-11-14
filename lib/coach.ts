@@ -88,6 +88,14 @@ function worstHurt(turns: CoachTurn[]): CheckResult | undefined {
   return all(["no_bribe", ...HARSH]) ?? all();
 }
 
+/** Widens a short evidence fragment ("It's time to") to the parent's whole sentence, so quotes read naturally. */
+function sentenceOf(text: string, q: string, card?: Scorecard): string {
+  const s = sentences(text).find((x) => x.includes(q));
+  const bad = card ? card.checks.filter((c) => !c.passed && c.evidence).flatMap((c) => c.evidence!.split(" … ")) : [];
+  if (!s || s.length > 90 || bad.some((b) => s.includes(b))) return q; // never widen into words that hurt
+  return s.replace(/[.!?]+$/, "");
+}
+
 /** The phrase that most likely caused Sam's reaction to this turn. */
 function keyQuote(t: CoachTurn): string | null {
   const st = t.state ?? "resisting";
@@ -97,7 +105,10 @@ function keyQuote(t: CoachTurn): string | null {
       : st === "going_along"
         ? passedWithQuote(t.card, ["acknowledges_feeling", "two_ok_choices", "alternative_or_praise", "states_limit"])
         : (failedWithQuote(t.card, HARSH) ?? failedWithQuote(t.card));
-  return c?.evidence ? cut(c.evidence.split(" … ")[0]) : null;
+  if (!c?.evidence) return null;
+  const q = c.evidence.split(" … ")[0];
+  // Praise quotes the whole sentence; problems stay pinpointed ("NOW!", "five more minutes").
+  return cut(c.passed ? sentenceOf(t.parent, q, t.card) : q, 60);
 }
 
 function codeSummary(turns: CoachTurn[]): string {
@@ -182,10 +193,11 @@ export function codeHeard(t: CoachTurn): string {
 export function codeCoach(input: CoachInput): Coach {
   const { turns, scenarioId, transfer } = input;
   const target = turns.reduce((w, t) => (t.card.total < w.card.total ? t : w), turns[0]);
-  const keepCheck = turns
-    .map((t) => passedWithQuote(t.card))
-    .filter((c): c is CheckResult => Boolean(c))
-    .sort((a, b) => b.maxPoints - a.maxPoints)[0];
+  const keepPick = turns
+    .map((t) => ({ t, c: passedWithQuote(t.card) }))
+    .filter((x): x is { t: CoachTurn; c: CheckResult } => Boolean(x.c))
+    .sort((a, b) => b.c.maxPoints - a.c.maxPoints)[0];
+  const keepCheck = keepPick?.c;
   const hurt = worstHurt(turns);
   const missing = target.card.checks
     .filter((c) => !c.passed && !c.evidence && c.maxPoints > 0 && MISSING_WHY[c.id])
@@ -199,7 +211,10 @@ export function codeCoach(input: CoachInput): Coach {
 
   return {
     summary: codeSummary(turns),
-    keep: keepCheck?.evidence ? { quote: cut(keepCheck.evidence.split(" … ")[0], 80), why: keepCheck.explanation } : null,
+    keep:
+      keepCheck?.evidence && keepPick
+        ? { quote: cut(sentenceOf(keepPick.t.parent, keepCheck.evidence.split(" … ")[0], keepPick.t.card), 80), why: keepCheck.explanation }
+        : null,
     change,
     rewrite: checkedRewrite(target.parent, codeRewrite(target.parent, target.card, scenarioId, transfer), scenarioId),
     heard: codeHeard(turns[turns.length - 1]),

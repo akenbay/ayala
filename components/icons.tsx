@@ -103,6 +103,14 @@ export const Chat = (p: P) => (
   </Svg>
 );
 
+export const Mic = (p: P) => (
+  <Svg {...p}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0" />
+    <path d="M12 18v3" />
+  </Svg>
+);
+
 export function ScenarioIcon({ id, size = 30 }: { id: ScenarioId; size?: number }) {
   if (id === "custom")
     return (

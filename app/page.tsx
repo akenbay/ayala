@@ -50,7 +50,7 @@ export default function Home() {
         )}
       </section>
 
-      {store && !store.profile && <p className="mt-6 text-[15px] font-semibold text-muted sm:mt-10">Or jump straight into a moment:</p>}
+      {store && !store.profile && <p className="mt-6 text-[15px] font-semibold text-muted sm:mt-10">Or try one now:</p>}
 
       <nav aria-label="Scenarios" className={`grid gap-3 sm:grid-cols-3 sm:gap-5 ${store && !store.profile ? "mt-3" : "mt-6 sm:mt-10"}`}>
         {SCENARIO_LIST.map((s) => {

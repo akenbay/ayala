@@ -79,6 +79,12 @@ When you press **See my score**, `/api/coach` reads the whole practice: your rep
 
 ChatGPT writes these when a key is set; each part that fails a rule is replaced by the code version, and without a key the code coach builds all four (`lib/coach.ts`). The retry then shows your own Change note as the tip, and **Need an idea?** offers your improved sentence.
 
+## Funnel order (a hypothesis we test)
+
+Ad link → the moment, with Sam's first line and the reply box (and a mic) already on screen, "About 2 minutes. No account needed." → or from home: the 7 question quiz, with a "you're not alone" break after question 3 and a "Setting up Sam" screen listing the answers Sam is built from → first practice → one change and your improved sentence → retry → the gain as the hero, plus "Could you actually say this to your child?" (Yes / Not quite, kept with the attempt as a usefulness signal) → paywall with your plan ("7 days on your weakest skill", day 1 done), yearly preselected, exact renewal terms, 14 day guarantee, no countdown timer → "Not now, continue free" goes on to the new situation; Progress is the second paywall.
+
+Most funnel data comes from native apps and is observational, so this order is a hypothesis. Test plan: quiz then paywall vs. quiz then one free practice then paywall, measured by revenue per quiz starter.
+
 ## Start quiz, your own moment, and safety
 
 - **Start quiz** (`/start`, 7 taps, about 60 seconds, no email): who you are, the child's age, boy or girl, temperament, hardest moments, what you usually do, and when it happens. Sam then talks like that child (a "big feelings" boy protests louder; a sensitive child sounds teary), what you usually do sets your first focus skill (gives in → holds the limit, yells → calm voice, freezes → clear direction), and the hardest time sets the default reminder.

@@ -111,6 +111,8 @@ export default function StartPage() {
   const [i, setI] = useState(0);
   const [a, setA] = useState<Partial<Profile> & { age?: Age }>({});
   const [multi, setMulti] = useState<string[]>([]);
+  const [sawBreak, setSawBreak] = useState(false);
+  const [sawSetup, setSawSetup] = useState(false);
   const done = i >= STEPS.length;
   const step = STEPS[Math.min(i, STEPS.length - 1)];
 
@@ -137,6 +139,61 @@ export default function StartPage() {
     router.push(first === "custom_form" ? "/moment" : "/practice");
   }
 
+  // A short break after question 3: the parent is not alone.
+  if (i === 3 && !sawBreak)
+    return (
+      <div className="mx-auto flex max-w-xl flex-col gap-5 py-10 text-center">
+        <p className="text-[64px] font-extrabold leading-none tracking-[-0.03em] text-deep">83.7%</p>
+        <h1 className="text-[26px] font-extrabold leading-tight">of preschoolers have tantrums at least sometimes.</h1>
+        <p className="text-[17px] text-soft-ink">
+          You&apos;re not doing it wrong. Toddlers test limits, and the words you use in that moment can be learned like any skill.
+        </p>
+        <a className="text-sm underline underline-offset-2" href="https://pubmed.ncbi.nlm.nih.gov/22928674/" target="_blank" rel="noreferrer">
+          Wakschlag et al., 2012: 1,490 children aged 3 to 5
+        </a>
+        <button type="button" className="btn-primary h-14 text-lg" onClick={() => setSawBreak(true)}>
+          Continue <Arrow size={20} />
+        </button>
+      </div>
+    );
+
+  // Before the result: show exactly what Sam is set up from. It is honest, Sam really uses these.
+  if (done && !sawSetup) {
+    const labelOf = (k: Step["key"], v: unknown) => STEPS.find((x) => x.key === k)?.options.find((o) => o.value === v)?.label;
+    const rows: [string, string | undefined][] = [
+      ["Sam's age", a.age ? `${a.age} years` : "3 years"],
+      ["Sam is a", labelOf("sex", a.sex)?.toLowerCase()],
+      ["Personality", labelOf("temperament", a.temperament)],
+      ["Hardest moments", multi.map((m) => labelOf("hardest", m)).filter(Boolean).join(", ")],
+      ["What you usually do", labelOf("usual", a.usual)],
+      ["Reminder", a.when ? WHEN_PHRASE[a.when] : undefined],
+    ];
+    return (
+      <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
+        <span className="label-caps">Setting up Sam</span>
+        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">Sam will act like your child.</h1>
+        <ul className="flex flex-col divide-y divide-line rounded-2xl bg-white px-4">
+          {rows
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <li key={k} className="flex items-start justify-between gap-4 py-3">
+                <span className="text-[15px] text-muted">{k}</span>
+                <span className="flex items-center gap-1.5 text-right text-[15px] font-bold">
+                  {v} <Check size={14} className="shrink-0 text-good" />
+                </span>
+              </li>
+            ))}
+        </ul>
+        <button type="button" className="btn-primary h-14 text-lg" onClick={() => setSawSetup(true)}>
+          See my plan <Arrow size={20} />
+        </button>
+        <button type="button" className="min-h-11 text-[15px] font-semibold underline underline-offset-[3px]" onClick={() => setI(0)}>
+          Change my answers
+        </button>
+      </div>
+    );
+  }
+
   if (done) {
     const usual = a.usual ?? "freeze";
     const f = FOCUS[usual];
@@ -145,12 +202,6 @@ export default function StartPage() {
     const first = firstScenario(multi, store?.unlocked ?? false);
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
-        <p className="rounded-2xl bg-peach px-4 py-3 text-[15px] leading-snug">
-          <b>You&apos;re not alone.</b> In a study of 1,490 preschoolers, 83.7% had tantrums at least sometimes.{" "}
-          <a className="underline underline-offset-2" href="https://pubmed.ncbi.nlm.nih.gov/22928674/" target="_blank" rel="noreferrer">
-            Wakschlag et al., 2012
-          </a>
-        </p>
         <span className="label-caps">Your plan</span>
         <h1 className="text-[30px] font-extrabold leading-tight tracking-tight">
           Calm words for a {kind}
@@ -164,28 +215,20 @@ export default function StartPage() {
             Skill: {DIMENSION_LABELS[f.dim]}. We picked it from what you usually do; your real practice will update it.
           </p>
         </section>
-        <ul className="flex flex-col gap-2 rounded-2xl bg-white p-5 text-base">
-          <li className="flex gap-2">
-            <Check size={16} className="mt-1 shrink-0" /> Sam will act like your child: {kind || "a "}
-            {who}, age {a.age ?? 3}.
-          </li>
-          <li className="flex gap-2">
-            <Check size={16} className="mt-1 shrink-0" /> First practice:{" "}
-            {first === "custom_form" ? "your own moment, in your words" : SCENARIOS[first].short.toLowerCase()}.
-          </li>
-          {a.when && (
-            <li className="flex gap-2">
-              <Check size={16} className="mt-1 shrink-0" /> A daily 2 minute reminder {WHEN_PHRASE[a.when]}, if you want one.
-            </li>
-          )}
-          <li className="flex gap-2">
-            <Check size={16} className="mt-1 shrink-0" /> Based on CDC&apos;s Essentials for Parenting Toddlers and Preschoolers.
-          </li>
-        </ul>
+        <section className="flex items-start gap-3 rounded-2xl bg-white p-5">
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange text-lg font-extrabold">
+            S
+          </span>
+          <p className="text-[17px] leading-snug">
+            <b>Sam</b> will act like your {kind}
+            {who}, age {a.age ?? 3}. First practice:{" "}
+            <b>{first === "custom_form" ? "your own moment, in your words" : SCENARIOS[first].short.toLowerCase()}</b>.
+          </p>
+        </section>
         <button type="button" className="btn-primary h-14 text-lg" onClick={finish}>
           Start my first practice <Arrow size={20} />
         </button>
-        <p className="text-center text-[13px] text-muted">Free. No account, no email. Your answers stay in this browser.</p>
+        <p className="text-center text-[13px] text-muted">About 2 minutes. Free, no account, no email.</p>
       </div>
     );
   }
