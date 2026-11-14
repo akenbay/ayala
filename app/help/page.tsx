@@ -1,47 +1,91 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { HELP_SCRIPTS, REPAIR_SCRIPT, matchScript, type HelpScript } from "@/lib/helpNow";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { HELP_SCRIPTS, REPAIR_SCRIPT, generalScript, matchScript, scriptById, type HelpScript } from "@/lib/helpNow";
 import { CDC } from "@/lib/rubric/cdc";
 import { SCENARIOS } from "@/lib/scenarios";
 import { detectCrisis, type Crisis } from "@/lib/safety";
 import { newId, ownMomentLocked, phrasesFor, update, useStore } from "@/lib/storage";
 import { CrisisCard } from "@/components/CrisisCard";
 import { Arrow, Back, Bolt, Info } from "@/components/icons";
+import { Spinner } from "@/components/ui";
 import { HomeCheck } from "@/components/PhraseBank";
 
-/** "What do I say right now?": one tap, one short script. No chat, no score, works offline. */
 export default function HelpNowPage() {
+  // useSearchParams needs a Suspense boundary so the page can still be prerendered.
+  return (
+    <Suspense fallback={null}>
+      <HelpNow />
+    </Suspense>
+  );
+}
+
+/**
+ * "What do I say right now?": one tap, one short script. No chat, no score.
+ * The open script lives in the URL (?s=bedtime), so the header button and the phone's Back button
+ * return to the list. A typed moment's script (?s=yours) is kept in memory only, never in the URL.
+ */
+function HelpNow() {
   const router = useRouter();
+  const params = useSearchParams();
   const store = useStore();
-  const [script, setScript] = useState<HelpScript | null>(null);
+  const [yours, setYours] = useState<HelpScript | null>(null);
   const [useId, setUseId] = useState<string | null>(null);
   const [helped, setHelped] = useState<boolean | null>(null);
   const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
   const [crisis, setCrisis] = useState<Crisis["kind"] | null>(null);
+  const sid = params.get("s");
+  const script = sid === "yours" ? yours : (scriptById(sid) ?? null);
 
   function open(s: HelpScript) {
     const id = newId();
-    setScript(s);
+    if (s.id === "ai" || s.id === "general") setYours(s);
     setUseId(id);
     setHelped(null);
     update((st) => {
       st.helpUses = [...(st.helpUses ?? []), { id, situation: s.id, createdAt: new Date().toISOString() }].slice(-200);
     });
+    router.push(`/help?s=${s.id === "ai" || s.id === "general" ? "yours" : s.id}`);
     window.scrollTo({ top: 0 });
   }
 
-  function openTyped() {
+  async function openTyped() {
     const t = typed.trim();
-    if (!t) return;
+    if (!t || busy) return;
     const c = detectCrisis(t);
     if (c) {
       setCrisis(c.kind);
       return;
     }
-    open(matchScript(t));
+    const ready = matchScript(t);
+    if (ready) {
+      open(ready);
+      return;
+    }
+    // Nothing ready fits: ask for words written for this moment, checked on the server.
+    setBusy(true);
+    let s: HelpScript | null = null;
+    try {
+      const r = await fetch("/api/help", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ situation: t, age: store?.childAge ?? 3 }),
+      });
+      const d = (await r.json()) as { script?: HelpScript | null; crisis?: Crisis["kind"] };
+      if (d.crisis) {
+        setBusy(false);
+        setCrisis(d.crisis);
+        return;
+      }
+      s = d.script ?? null;
+    } catch {
+      /* offline or slow: fall through to the general script */
+    }
+    setBusy(false);
+    open(s ?? generalScript(t));
   }
 
   function rate(v: boolean) {
@@ -95,7 +139,7 @@ export default function HelpNowPage() {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-4 py-4">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setScript(null)} aria-label="Pick another moment" className="flex h-11 w-11 items-center justify-center rounded-full bg-white">
+          <button type="button" onClick={() => router.push("/help")} aria-label="Pick another moment" className="flex h-11 w-11 items-center justify-center rounded-full bg-white">
             <Back size={20} />
           </button>
           <h1 className="font-display text-[26px] leading-tight">{script.label}</h1>
@@ -112,6 +156,12 @@ export default function HelpNowPage() {
               ))}
             </ul>
           </section>
+        )}
+
+        {script.id === "general" && (
+          <p className="rounded-2xl bg-white px-4 py-3 text-[15px] text-soft-ink">
+            We couldn&apos;t write words for that exact moment right now, so here is a calm start that works for any hard moment.
+          </p>
         )}
 
         <section aria-label="Say this" className="anim-rise rounded-3xl bg-white p-5 shadow-soft">
@@ -161,7 +211,10 @@ export default function HelpNowPage() {
         <a href={src.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 self-center text-[14px] font-semibold underline underline-offset-[3px]">
           <Info size={15} /> Based on {src.name}
         </a>
-        <p className="text-center text-[13px] text-muted">A short script from CDC guidance, not medical advice. If anyone is in danger, call 911.</p>
+        <p className="text-center text-[13px] text-muted">
+          {script.id === "ai" ? "Written for your moment by AI from CDC guidance and checked by our rubric. " : "A short script from CDC guidance. "}
+          Not medical advice. If anyone is in danger, call 911.
+        </p>
       </div>
     );
   }
@@ -215,13 +268,15 @@ export default function HelpNowPage() {
             maxLength={160}
             onChange={(e) => setTyped(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && openTyped()}
+            disabled={busy}
             placeholder="He won't get in the bath"
             className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-field bg-white px-3.5 text-base outline-none focus:border-ink"
           />
-          <button type="button" className="btn-primary h-12 shrink-0 px-5" onClick={openTyped} disabled={!typed.trim()}>
-            Help
+          <button type="button" className="btn-primary h-12 shrink-0 px-5" onClick={openTyped} disabled={!typed.trim() || busy}>
+            {busy ? <Spinner /> : "Help"}
           </button>
         </div>
+        {busy && <p className="text-[14px] text-muted">Writing words for your moment…</p>}
       </div>
     </div>
   );

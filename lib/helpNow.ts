@@ -1,4 +1,6 @@
 import type { CdcKey } from "./rubric/cdc";
+import { buildScorecard } from "./rubric/score";
+import { detectCrisis } from "./safety";
 import type { ScenarioId } from "./scenarios";
 
 /**
@@ -29,7 +31,7 @@ export const HELP_SCRIPTS: HelpScript[] = [
     cdc: "directions",
     practice: "leaving_playground",
     situation: "My child refuses to leave the playground.",
-    keywords: ["leave", "leaving", "park", "playground", "go home", "slide", "store", "grandma"],
+    keywords: ["leave", "leaving", "park", "playground", "go home", "slide", "grandma", "playdate", "daycare pickup"],
   },
   {
     id: "bedtime",
@@ -62,7 +64,7 @@ export const HELP_SCRIPTS: HelpScript[] = [
     cdc: "responding",
     practice: "hitting_sibling",
     situation: "My child just hit their sibling.",
-    keywords: ["hit", "hitting", "bite", "biting", "kick", "push", "brother", "sister", "sibling", "hurt"],
+    keywords: ["hit", "hitting", "bit", "bite", "biting", "kick", "kicked", "push", "pushed", "scratch", "brother", "sister", "sibling", "hurt", "punch"],
   },
   {
     id: "dressing",
@@ -84,7 +86,7 @@ export const HELP_SCRIPTS: HelpScript[] = [
     cdc: "consequences",
     practice: "custom",
     situation: "My child arches their back and won't get in the car seat.",
-    keywords: ["car", "seat", "carseat", "buckle", "stroller"],
+    keywords: ["car", "car seat", "carseat", "buckle", "stroller"],
   },
   {
     id: "public",
@@ -123,19 +125,60 @@ export const REPAIR_SCRIPT: HelpScript = {
   keywords: ["yelled", "shouted", "lost it", "lost my temper", "screamed at"],
 };
 
-/** Picks the script whose keywords best match what the parent typed. */
-export function matchScript(text: string): HelpScript {
-  const t = ` ${text.toLowerCase()} `;
-  let best = HELP_SCRIPTS[HELP_SCRIPTS.length - 1];
+const escapeRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** True when the keyword appears as a whole word (plural or past tense allowed), so "car" never matches "scared". */
+function hasWord(text: string, k: string): boolean {
+  return new RegExp(`\\b${escapeRe(k)}(s|es|ed)?\\b`, "i").test(text);
+}
+
+/** Picks the script whose keywords best match what the parent typed, or null when nothing fits. */
+export function matchScript(text: string): HelpScript | null {
+  let best: HelpScript | null = null;
   let bestHits = 0;
   for (const s of [...HELP_SCRIPTS, REPAIR_SCRIPT]) {
-    const hits = s.keywords.filter((k) => t.includes(k)).length;
+    const hits = s.keywords.filter((k) => hasWord(text, k)).length;
     if (hits > bestHits) {
       best = s;
       bestHits = hits;
     }
   }
   return best;
+}
+
+/** Used when no ready script fits and no tailored one can be written. Calm-first, works for any moment. */
+export function generalScript(situation: string): HelpScript {
+  const base = HELP_SCRIPTS.find((s) => s.id === "meltdown")!;
+  return { ...base, id: "general", label: "Any hard moment", situation, keywords: [] };
+}
+
+/** Rubric checks a model-written script must never fail: these catch harmful wording, not style. */
+const MUST_PASS = new Set(["no_yelling", "no_shaming", "no_empty_threats", "no_bribe"]);
+
+/** Extra wording a script for a tired parent must never contain, beyond the practice rubric's lists. */
+const EXTRA_HARM =
+  /\b(being a baby|act(ing)? like a baby|big (boys|girls) (don'?t|do not)|(you|you'?ll) (get|can have|will get) (a |an |some |your )?(candy|treat|cookie|chocolate|ice ?cream|sweets?|dessert|prize|sticker|lollipop)|i'?m (so )?(disappointed|ashamed) (in|of|with) you|you made me)\b/i;
+
+/**
+ * Checks a model-written script before a parent sees it: three short lines, no crisis language,
+ * no dashes or markup, and no yelling, shaming, threats or bribes by the same code checks as practice.
+ * It does not require a high score: the rubric misses plain wording like "You want to keep playing".
+ */
+export function parseAiScript(raw: unknown, situation: string): HelpScript | null {
+  if (!raw || typeof raw !== "object") return null;
+  const j = raw as Record<string, unknown>;
+  const clean = (v: unknown, max: number) =>
+    typeof v === "string" ? v.replace(/^["'“]|["'”]$/g, "").replace(/\s*[—–]\s*/g, ", ").replace(/[*_#<>{}]/g, "").replace(/\s+/g, " ").trim().slice(0, max) : "";
+  const say = Array.isArray(j.say) ? j.say.map((x) => clean(x, 110)).filter(Boolean) : [];
+  const label = clean(j.label, 28);
+  const ifMore = clean(j.ifMore, 200);
+  const avoid = clean(j.avoid, 140);
+  if (say.length !== 3 || !label || !ifMore || !avoid) return null;
+  if (detectCrisis([label, ...say, ifMore, avoid].join(" "))) return null;
+  if (EXTRA_HARM.test(say.join(" "))) return null;
+  const card = buildScorecard(say.join(" "), "custom", null, true);
+  if (card.checks.some((c) => MUST_PASS.has(c.id) && !c.passed)) return null;
+  return { id: "ai", label, say, ifMore, avoid, cdc: "directions", practice: "custom", situation, keywords: [] };
 }
 
 export function scriptById(id: string | null | undefined): HelpScript | undefined {
