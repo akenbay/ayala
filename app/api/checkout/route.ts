@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             unit_amount: PRICE_CENTS,
             recurring: { interval: "month" },
             product_data: {
-              name: "CalmRehearsal Plus",
+              name: "Ayala Plus",
               description: "All scenarios, the full 7 day practice plan, saved progress.",
             },
           },

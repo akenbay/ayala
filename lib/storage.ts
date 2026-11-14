@@ -36,7 +36,7 @@ export type Store = {
   unlocked: boolean;
 };
 
-const KEY = "calmrehearsal:v1";
+const KEY = "ayala:v1";
 
 function blank(): Store {
   return {
@@ -57,7 +57,7 @@ export function load(): Store {
   return structuredClone(snapshot());
 }
 
-const EVENT = "calmrehearsal:change";
+const EVENT = "ayala:change";
 let memory: string | null = null; // fallback when localStorage is unavailable
 
 function readRaw(): string | null {
@@ -233,14 +233,14 @@ export function reminderIcs(time: string, url: string, focusTip: string): string
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//CalmRehearsal//Practice//EN",
+    "PRODID:-//Ayala//Practice//EN",
     "BEGIN:VEVENT",
-    `UID:${newId()}@calmrehearsal`,
+    `UID:${newId()}@ayala`,
     `DTSTAMP:${icsDate(new Date())}`,
     `DTSTART:${icsDate(start)}`,
     `DTEND:${icsDate(end)}`,
     "RRULE:FREQ=DAILY;COUNT=7",
-    "SUMMARY:CalmRehearsal: 5 minute practice",
+    "SUMMARY:Ayala: 5 minute practice",
     `DESCRIPTION:${esc(`Today's focus: ${focusTip} Practice here: ${url}`)}`,
     `URL:${url}`,
     "BEGIN:VALARM",

@@ -3,7 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CalmRehearsal: practice what to say to your toddler",
+  title: "Ayala: practice what to say to your toddler",
   description:
     "Parenting advice is easy to read. Practice what to say before the hardest five minutes of your day.",
 };
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <nav className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <span aria-hidden className="grid h-7 w-7 place-items-center rounded-lg bg-calm text-sm text-white">C</span>
-              CalmRehearsal
+              Ayala
             </Link>
             <div className="flex items-center gap-1 text-sm">
               <Link href="/" className="rounded-lg px-3 py-2 text-muted hover:bg-white hover:text-ink">Practice</Link>

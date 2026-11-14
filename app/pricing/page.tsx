@@ -76,7 +76,7 @@ export default function PricingPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-[#8a5a12]">CalmRehearsal Plus</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-[#8a5a12]">Ayala Plus</p>
         <h1 className="mt-1 text-3xl font-bold">Keep practicing through the toddler years</h1>
         <p className="mt-2 text-muted">The free practice shows what works. Plus makes it a habit: a few minutes a day, aimed at the skill you need most.</p>
       </div>
@@ -143,7 +143,7 @@ export default function PricingPage() {
             <b className="text-ink">Positive Parenting Solutions:</b> $14.99/month for courses and coaching.
           </li>
           <li>
-            <b className="text-ink">CalmRehearsal Plus:</b> $12.99/month to practice the exact moment and see which words worked.
+            <b className="text-ink">Ayala Plus:</b> $12.99/month to practice the exact moment and see which words worked.
           </li>
         </ul>
       </div>

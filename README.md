@@ -1,8 +1,8 @@
-# CalmRehearsal
+# Ayala
 
 **Practice what to say to your toddler before the hardest five minutes of your day.**
 
-CalmRehearsal is a web app for working US parents of 2 to 4 year olds. Pick a hard moment (leaving the playground, bedtime, hitting a sibling), type what you would really say, and a practice toddler pushes back. The app scores **your own words** against a rubric based on CDC parenting guidance, quotes the exact words that helped or hurt, and lets you retry. Then you handle a new situation with no script, to show the skill transfers.
+Ayala is a web app for working US parents of 2 to 4 year olds. Pick a hard moment (leaving the playground, bedtime, hitting a sibling), type what you would really say, and a practice toddler pushes back. The app scores **your own words** against a rubric based on CDC parenting guidance, quotes the exact words that helped or hurt, and lets you retry. Then you handle a new situation with no script, to show the skill transfers.
 
 Built for Zimran Business Cup 2026 (Skills track).
 

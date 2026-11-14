@@ -47,7 +47,7 @@ function Reminder({ tip }: { tip: string }) {
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "calmrehearsal-daily-practice.ics";
+    a.download = "ayala-daily-practice.ics";
     a.click();
     URL.revokeObjectURL(url);
     setSaved(true);
