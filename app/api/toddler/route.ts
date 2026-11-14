@@ -14,6 +14,13 @@ const Body = z.object({
     .min(2)
     .max(10),
   passed: z.record(z.string(), z.boolean()).optional(),
+  situation: z.string().max(400).optional(),
+  child: z
+    .object({
+      sex: z.enum(["boy", "girl", "unsaid"]).optional(),
+      temperament: z.enum(["calm", "active", "fiery", "sensitive"]).optional(),
+    })
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,6 +45,8 @@ export async function POST(req: Request) {
     context: body.context,
     history,
     passed: body.passed as Partial<Record<CheckId, boolean>> | undefined,
+    situation: body.situation,
+    child: body.child,
   });
   return json(result);
 }

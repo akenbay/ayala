@@ -1,6 +1,6 @@
 import type { Dimension } from "./rubric/types";
 
-export type ScenarioId = "leaving_playground" | "bedtime_refusal" | "hitting_sibling";
+export type ScenarioId = "leaving_playground" | "bedtime_refusal" | "hitting_sibling" | "custom";
 
 /** Short building blocks the code coach uses to repair a parent's own sentence. */
 export type CoachLines = { feeling: string; limit: string; choice: string };
@@ -116,15 +116,57 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
       soften: ["...can I stomp?", "Okay... my turn next?", "I squeeze the pillow."],
     },
   },
+  // The parent's own moment. The situation text comes from the parent at runtime (describeWith).
+  custom: {
+    id: "custom",
+    lines: { feeling: "I know you're upset.", limit: "It's time to stop now.", choice: "Do you want to do it yourself or should I help?" },
+    title: "Your own moment",
+    short: "Your moment",
+    description: "A hard moment the parent describes.",
+    childOpener: "No! I don't want to!",
+    scripts: [
+      "I know you're upset. It's time to stop now. Do you want to do it yourself or should I help?",
+      "You wish you could keep going. It's time to stop now. Do you want to walk or hop to the next thing?",
+    ],
+    weights: {},
+    safetyFirst: false,
+    free: true,
+    transfer: {
+      id: "custom_transfer",
+      lines: { feeling: "You wish we could stay.", limit: "It's time to go home now.", choice: "Do you want to walk or hop to the car?" },
+      title: "Leaving the playground",
+      description: "It is time to leave the playground and go home. The child is on the slide and does not want to leave.",
+      childOpener: "No! I want to stay on the slide!",
+    },
+    fallbackReplies: {
+      resist: ["No! I don't want to!", "You can't make me!", "NO! Mine!"],
+      soften: ["...okay, but I'm sad.", "Can I pick?", "Okay... hold my hand?"],
+    },
+  },
 };
 
-export const SCENARIO_LIST: Scenario[] = Object.values(SCENARIOS);
+/** The ready-made scenarios (the parent's own moment is offered separately). */
+export const SCENARIO_LIST: Scenario[] = Object.values(SCENARIOS).filter((s) => s.id !== "custom");
+
+export const MAX_SITUATION = 220;
+
+/** Cleans a parent-written situation before it goes into a prompt. */
+export function cleanSituation(text: string): string {
+  return text.replace(/[<>{}]/g, "").replace(/\s+/g, " ").trim().slice(0, MAX_SITUATION);
+}
 
 export function isScenarioId(v: unknown): v is ScenarioId {
   return typeof v === "string" && v in SCENARIOS;
 }
 
 /** Returns the prompt description for a scenario or its transfer variant. */
+/** Like describe, but uses the parent's own situation text for "Your moment". */
+export function describeWith(id: ScenarioId, transfer: boolean, situation?: string) {
+  const d = describe(id, transfer);
+  const own = situation ? cleanSituation(situation) : "";
+  return id === "custom" && !transfer && own ? { ...d, title: "Your moment", description: `The parent describes it: "${own}"` } : d;
+}
+
 export function describe(id: ScenarioId, transfer: boolean): { title: string; description: string; childOpener: string; lines: CoachLines } {
   const s = SCENARIOS[id];
   return transfer

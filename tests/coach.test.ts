@@ -27,6 +27,8 @@ describe("code coach", () => {
     expect(c.summary).toContain("got their way");
     // What caused the ending is what to change.
     expect(c.change.quote).toContain("five more minutes");
+    expect(c.change.cdc).toContain("Consequences");
+    expect(c.heard).toMatch(/get what I want/);
     // Never praise a phrase that was also yelling.
     expect(c.keep?.quote ?? "").not.toContain("NOW");
   });

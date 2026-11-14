@@ -207,3 +207,20 @@ describe("Sam's state", () => {
     expect(decideState(signalsFromText("Can you please come here?"), 1, 0)).toBe("resisting");
   });
 });
+
+describe("crisis safety", () => {
+  it("catches crisis language and leaves practice sentences alone", async () => {
+    const { detectCrisis } = await import("@/lib/safety");
+    expect(detectCrisis("I can't do this anymore, I want to die")?.kind).toBe("self_harm");
+    expect(detectCrisis("Honestly I feel like I'm going to hit him so hard")?.kind).toBe("harm_to_child");
+    expect(detectCrisis("I shook my baby last night")?.kind).toBe("harm_to_child");
+    expect(detectCrisis("I can't do this anymore")?.kind).toBe("overwhelmed");
+    expect(detectCrisis("My husband hits me")?.kind).toBe("unsafe_home");
+    for (const s of Object.values((await import("@/lib/scenarios")).SCENARIOS)) {
+      for (const t of s.scripts) expect(detectCrisis(t)).toBeNull();
+    }
+    expect(detectCrisis("I won't let you hit. Hitting hurts.")).toBeNull();
+    expect(detectCrisis("Stop hitting! Bad boy!")).toBeNull();
+    expect(detectCrisis("You're killing me, we're leaving now")).toBeNull();
+  });
+});

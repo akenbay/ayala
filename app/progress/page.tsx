@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { SCENARIOS } from "@/lib/scenarios";
 import { DIMENSION_LABELS, DIMENSIONS } from "@/lib/rubric/types";
 import { GUARANTEE, PLANS } from "@/lib/pricing";
-import { FOCUS_TIPS, buildPlan, demoWeekAttempts, focusLabel, reminderIcs, update, useStore, weakestDimension } from "@/lib/storage";
+import { FOCUS_TIPS, REMINDER_TIME, buildPlan, demoWeekAttempts, focusLabel, reminderIcs, update, useStore, weakestDimension } from "@/lib/storage";
 import { Arrow, Bell, Calendar, Check, ChevronDown } from "@/components/icons";
 
 const KIND_LABEL = { first: "First try", retry: "With the tip", transfer: "On your own" } as const;
@@ -47,8 +47,8 @@ function clearDemo() {
   });
 }
 
-function Reminder({ tip }: { tip: string }) {
-  const [time, setTime] = useState("19:30");
+function Reminder({ tip, defaultTime }: { tip: string; defaultTime?: string }) {
+  const [time, setTime] = useState(defaultTime ?? "19:30");
   const [saved, setSaved] = useState(false);
   function download() {
     const ics = reminderIcs(time, window.location.origin, tip);
@@ -223,7 +223,10 @@ export default function ProgressPage() {
         </section>
       )}
 
-      <Reminder tip={FOCUS_TIPS[weakest ?? "emotional_response"]} />
+      <Reminder
+        tip={FOCUS_TIPS[weakest ?? store.profile?.focus ?? "emotional_response"]}
+        defaultTime={store.profile?.when ? REMINDER_TIME[store.profile.when] : undefined}
+      />
 
       <section aria-label="Skills" className="flex flex-col gap-3.5 rounded-2xl bg-white p-[18px]">
         <h2 className="text-[19px] font-extrabold">Your skills</h2>

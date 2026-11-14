@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
@@ -7,7 +8,7 @@ import { focusLabel, update, useStore, type Age } from "@/lib/storage";
 import { TEST_CARD } from "@/lib/pricing";
 import { Arrow, ChevronRight, ScenarioIcon } from "@/components/icons";
 
-const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3 };
+const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3, custom: 3 };
 
 export default function Home() {
   const router = useRouter();
@@ -42,9 +43,16 @@ export default function Home() {
         <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-muted sm:mt-5 sm:text-xl">
           Pick a moment. Type what you&apos;d really say. Sam, a practice toddler, pushes back, and you get a score and one tip.
         </p>
+        {store && !store.profile && (
+          <Link href="/start" className="btn-primary mt-5 h-14 w-full text-lg sm:w-auto">
+            Get my plan in 60 seconds <Arrow size={20} />
+          </Link>
+        )}
       </section>
 
-      <nav aria-label="Scenarios" className="mt-6 grid gap-3 sm:mt-10 sm:grid-cols-3 sm:gap-5">
+      {store && !store.profile && <p className="mt-6 text-[15px] font-semibold text-muted sm:mt-10">Or jump straight into a moment:</p>}
+
+      <nav aria-label="Scenarios" className={`grid gap-3 sm:grid-cols-3 sm:gap-5 ${store && !store.profile ? "mt-3" : "mt-6 sm:mt-10"}`}>
         {SCENARIO_LIST.map((s) => {
           const plus = !s.free && !unlocked;
           return (
@@ -72,6 +80,20 @@ export default function Home() {
           );
         })}
       </nav>
+
+      <Link
+        href="/moment"
+        className="mt-3 flex items-center gap-4 rounded-2xl border-[1.5px] border-dashed border-ink/40 bg-paper p-4 pl-[18px] transition hover:border-ink sm:mt-5 sm:p-5"
+      >
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange">
+          <ScenarioIcon id="custom" />
+        </span>
+        <span className="flex flex-1 flex-col gap-0.5">
+          <span className="text-xl font-bold">Your own moment</span>
+          <span className="text-[15px] text-muted">Describe what happens at home, or what you said when you lost it today.</span>
+        </span>
+        <ChevronRight size={20} />
+      </Link>
 
       <div className="mt-5 flex flex-col gap-4 sm:mt-7 sm:flex-row sm:items-start sm:justify-between">
         <div className="sm:flex-1">
@@ -154,11 +176,12 @@ export default function Home() {
           Judges: 3 minute tour
         </summary>
         <ol className="mt-3 list-decimal space-y-2 rounded-2xl bg-white p-5 pl-9 text-left text-[15px] leading-relaxed text-soft-ink">
-          <li>Tap <b>Leaving the playground</b>. Type what you&apos;d say, or tap <b>Need an idea?</b> for a labeled sample. It runs through the real scoring.</li>
-          <li>Reply to Sam, then open <b>See my score</b>. Every point quotes your own words. Tap a highlighted phrase to see why.</li>
-          <li>Retry with the tip, see before and after, then handle a <b>new situation with no tips</b>.</li>
-          <li>Open <b>Your progress</b> for the 7 day plan and a daily calendar reminder. <b>See a sample week</b> shows labeled demo data.</li>
-          <li>Open <b>Plus</b> and pay with Stripe test card <code className="font-mono font-semibold">{TEST_CARD}</code>, any future date, any CVC.</li>
+          <li>Tap <b>Get my plan in 60 seconds</b>: 7 taps shape Sam (age, boy or girl, temperament), your first focus and a reminder time.</li>
+          <li>Type what you&apos;d say to Sam, or tap <b>Need an idea?</b> for a labeled sample. A line under each reply shows how Sam is doing; the practice ends when Sam goes along, melts down or gets their way.</li>
+          <li><b>See my score</b>: what happened, what to keep, what to change (with the CDC page), how Sam heard it, and your own words improved and re-scored.</li>
+          <li>Retry with your tip, then a <b>new situation with no tips</b>.</li>
+          <li><b>Your own moment</b>: describe your real situation, or <b>Today I lost it</b> with what you actually said. Try typing something like &ldquo;I can&apos;t do this anymore&rdquo; to see the crisis safety screen.</li>
+          <li><b>Your progress</b>: 7 day plan, skills, calendar reminder. <b>See a sample week</b> shows labeled demo data. <b>Plus</b> uses Stripe test card <code className="font-mono font-semibold">{TEST_CARD}</code>.</li>
         </ol>
       </details>
     </div>

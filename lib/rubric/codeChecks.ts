@@ -12,18 +12,18 @@ type Meta = { label: string; dimension: Dimension; maxPoints: number; cdcBasis: 
 
 export const CHECK_META: Record<CheckId, Meta> = {
   states_not_asks: { label: "States the direction, doesn't ask", dimension: "clear_direction", maxPoints: 8, cdcBasis: CDC.directions.name },
-  one_direction: { label: "One direction at a time", dimension: "clear_direction", maxPoints: 5, cdcBasis: CDC.oneAtATime.name },
+  one_direction: { label: "One direction at a time", dimension: "clear_direction", maxPoints: 5, cdcBasis: CDC.goodDirections.name },
   specific_action: { label: "Specific action, not vague", dimension: "clear_direction", maxPoints: 8, cdcBasis: CDC.goodDirections.name },
   says_what_to_do: { label: "Says what to do, not only what to stop", dimension: "clear_direction", maxPoints: 4, cdcBasis: CDC.directions.name },
-  no_yelling: { label: "No yelling", dimension: "calm_respectful", maxPoints: 6, cdcBasis: CDC.essentials.name },
-  no_shaming: { label: "No insults, shaming or hitting", dimension: "calm_respectful", maxPoints: 8, cdcBasis: CDC.essentials.name },
-  no_empty_threats: { label: "No empty or outsized threats", dimension: "calm_respectful", maxPoints: 6, cdcBasis: CDC.essentials.name },
-  acknowledges_feeling: { label: "Names the feeling or wish", dimension: "emotional_response", maxPoints: 20, cdcBasis: CDC.essentials.name },
-  states_limit: { label: "States the limit clearly", dimension: "boundaries", maxPoints: 10, cdcBasis: CDC.essentials.name },
-  no_bribe: { label: "No bribe, no backing down", dimension: "boundaries", maxPoints: 5, cdcBasis: CDC.essentials.name },
-  warning_is_calm: { label: "Any warning is calm and doable", dimension: "boundaries", maxPoints: 5, cdcBasis: CDC.essentials.name },
+  no_yelling: { label: "No yelling", dimension: "calm_respectful", maxPoints: 6, cdcBasis: CDC.responding.name },
+  no_shaming: { label: "No insults, shaming or hitting", dimension: "calm_respectful", maxPoints: 8, cdcBasis: CDC.responding.name },
+  no_empty_threats: { label: "No empty or outsized threats", dimension: "calm_respectful", maxPoints: 6, cdcBasis: CDC.consequences.name },
+  acknowledges_feeling: { label: "Names the feeling or wish", dimension: "emotional_response", maxPoints: 20, cdcBasis: CDC.timeIn.name },
+  states_limit: { label: "States the limit clearly", dimension: "boundaries", maxPoints: 10, cdcBasis: CDC.consequences.name },
+  no_bribe: { label: "No bribe, no backing down", dimension: "boundaries", maxPoints: 5, cdcBasis: CDC.consequences.name },
+  warning_is_calm: { label: "Any warning is calm and doable", dimension: "boundaries", maxPoints: 5, cdcBasis: CDC.consequences.name },
   two_ok_choices: { label: "Offers two acceptable choices", dimension: "positive_guidance", maxPoints: 8, cdcBasis: CDC.goodDirections.name },
-  alternative_or_praise: { label: "Gives an alternative or specific praise", dimension: "positive_guidance", maxPoints: 7, cdcBasis: CDC.directions.name },
+  alternative_or_praise: { label: "Gives an alternative or specific praise", dimension: "positive_guidance", maxPoints: 7, cdcBasis: CDC.responding.name },
 };
 
 /** Checks that only fail when something bad is present. They earn half points if nothing constructive was said. */

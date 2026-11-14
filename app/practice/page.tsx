@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { SCENARIOS, describe, type ScenarioId } from "@/lib/scenarios";
 import type { CheckResult, Dimension, Scorecard } from "@/lib/rubric/types";
 import { MAX_CHARS } from "@/lib/rubric/validate";
@@ -30,6 +30,8 @@ import {
   findMarks,
 } from "@/components/ui";
 import { codeCoach, type Coach } from "@/lib/coach";
+import type { Crisis } from "@/lib/safety";
+import { CrisisCard } from "@/components/CrisisCard";
 import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
 import { Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 
@@ -60,12 +62,14 @@ const IDEAS: Record<ScenarioId, { first: string; retry: string }> = {
     first: "I won't let you hit. Hitting hurts. You can stomp your feet or squeeze the pillow.",
     retry: SCENARIOS.hitting_sibling.scripts[0],
   },
+  custom: { first: SCENARIOS.custom.scripts[0], retry: SCENARIOS.custom.scripts[1] },
 };
 
 const SITUATION: Record<ScenarioId, { main: string; transfer: string }> = {
   leaving_playground: { main: "is on the slide and refuses to leave the playground.", transfer: "is playing with grandma's toys and won't put on shoes to go home." },
   bedtime_refusal: { main: "is building with blocks and refuses to go to bed.", transfer: "won't turn off a cartoon on the tablet before dinner." },
   hitting_sibling: { main: "just hit their baby brother, who grabbed a toy truck. He's crying.", transfer: "pushed a friend at a playdate and grabbed their doll." },
+  custom: { main: "", transfer: "is on the slide and refuses to leave the playground." },
 };
 
 const STRENGTH: Record<Dimension, string> = {
@@ -110,6 +114,11 @@ export default function PracticePage() {
   const age: Age = store?.childAge ?? 3;
   const context = store?.context ?? "";
   const planDay = store?.currentPlanDay ?? null;
+  const own = scenarioId === "custom" ? store?.custom : undefined;
+  const sex = store?.profile?.sex;
+  const temperament = store?.profile?.temperament;
+  const child = useMemo(() => (sex || temperament ? { sex, temperament } : undefined), [sex, temperament]);
+  const [customOpener, setCustomOpener] = useState<string | null>(null);
   const allowed = Boolean(store?.current && (SCENARIOS[store.current].free || store.unlocked));
   const ready = Boolean(store) && allowed;
 
@@ -138,15 +147,38 @@ export default function PracticePage() {
     else if (!allowed) router.replace("/pricing?from=" + store.current);
   }, [store, allowed, router]);
 
+  // For the parent's own moment, Sam's first line is written for their situation.
+  useEffect(() => {
+    if (scenarioId !== "custom" || !own?.situation || customOpener) return;
+    let alive = true;
+    (async () => {
+      let line = SCENARIOS.custom.childOpener;
+      try {
+        const r = await fetch("/api/opener", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ age, situation: own.situation, child }),
+        });
+        const d = (await r.json()) as { opener?: string };
+        if (d.opener) line = d.opener;
+      } catch {}
+      if (alive) setCustomOpener(line);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [scenarioId, own?.situation, customOpener, age, child]);
+
   const scenario = SCENARIOS[scenarioId];
   const transfer = kind === "transfer";
   const title = transfer ? scenario.transfer.title : scenario.short;
+  const openerFor = (t: boolean) => (scenarioId === "custom" && !t ? (customOpener ?? "…") : describe(scenarioId, t).childOpener);
   // The opener depends on the scenario, which is known only after the store loads.
-  const shown = msgs.length === 1 && !msgs[0].text ? [{ role: "child" as const, text: describe(scenarioId, false).childOpener }] : msgs;
+  const shown = msgs.length === 1 && !msgs[0].text ? [{ role: "child" as const, text: openerFor(false) }] : msgs;
 
   function startChat(k: AttemptKind) {
     setKind(k);
-    setMsgs([{ role: "child", text: describe(scenarioId, k === "transfer").childOpener }]);
+    setMsgs([{ role: "child", text: openerFor(k === "transfer") }]);
     setStep("chat");
     window.scrollTo({ top: 0 });
   }
@@ -195,7 +227,7 @@ export default function PracticePage() {
 
   /** Asks the coach to read the whole conversation. Falls back to the code coach in the browser. */
   async function loadCoach(k: AttemptKind, turns: Turn[]) {
-    const input = { scenarioId, transfer: k === "transfer", age, turns };
+    const input = { scenarioId, transfer: k === "transfer", age, turns, situation: own?.situation };
     setCoaches((c) => ({ ...c, [k]: "loading" }));
     let result: Coach;
     try {
@@ -229,12 +261,19 @@ export default function PracticePage() {
       <div className="mx-auto w-full max-w-xl flex-1 px-4 sm:px-5">
         {step === "chat" && (
           <Chat
-            key={kind}
+            key={`${scenarioId}-${kind}`}
             scenarioId={scenarioId}
             age={age}
             context={context}
             transfer={transfer}
-            situation={`Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`}
+            situation={
+              scenarioId === "custom" && !transfer
+                ? (own?.situation ?? "Your own moment")
+                : `Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`
+            }
+            ownSituation={scenarioId === "custom" && !transfer ? own?.situation : undefined}
+            child={child}
+            initialText={kind === "first" && scenarioId === "custom" ? own?.said : undefined}
             banner={
               kind === "retry" && firstCoach
                 ? {
@@ -247,7 +286,9 @@ export default function PracticePage() {
                 ? { label: "Your tip", text: FOCUS_TIPS[tip.dimension] }
                 : transfer
                   ? { label: "On your own", text: "A new moment. No tips this time." }
-                  : null
+                  : kind === "first" && scenarioId === "custom" && own?.said
+                    ? { label: "Today I lost it", text: "Your words are ready below. Send them to see how Sam reacts, then we'll find a better way together." }
+                    : null
             }
             msgs={shown}
             setMsgs={setMsgs}
@@ -362,13 +403,17 @@ function Chat(props: {
   idea: string | null;
   ideaLabel: string;
   onFinish: () => void;
+  ownSituation?: string;
+  child?: { sex?: "boy" | "girl" | "unsaid"; temperament?: "calm" | "active" | "fiery" | "sensitive" };
+  initialText?: string;
 }) {
-  const { scenarioId, age, context, transfer, situation, banner, msgs, setMsgs, idea, ideaLabel, onFinish } = props;
-  const [text, setText] = useState("");
+  const { scenarioId, age, context, transfer, situation, banner, msgs, setMsgs, idea, ideaLabel, onFinish, ownSituation, child, initialText } = props;
+  const [text, setText] = useState(initialText ?? "");
   const [busy, setBusy] = useState<"" | "score" | "child">("");
   const [error, setError] = useState("");
   const [showIdea, setShowIdea] = useState(false);
   const [pending, setPending] = useState("");
+  const [crisis, setCrisis] = useState<Crisis["kind"] | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
   const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
@@ -395,9 +440,17 @@ function Chat(props: {
       const res = await fetch("/api/score", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scenarioId, age, text: t, transfer }),
+        body: JSON.stringify({ scenarioId, age, text: t, transfer, situation: ownSituation }),
       });
       const data = await res.json();
+      if (data.crisis) {
+        setCrisis(data.crisis as Crisis["kind"]);
+        window.scrollTo({ top: 0 });
+        setBusy("");
+        setPending("");
+        setText("");
+        return;
+      }
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Try again.");
         setBusy("");
@@ -419,6 +472,8 @@ function Chat(props: {
           transfer,
           context,
           history,
+          situation: ownSituation,
+          child,
           passed: Object.fromEntries((data as Scorecard).checks.map((c) => [c.id, c.passed])),
         }),
       });
@@ -431,6 +486,13 @@ function Chat(props: {
       setBusy("");
     }
   }
+
+  if (crisis)
+    return (
+      <div className="py-4">
+        <CrisisCard kind={crisis} />
+      </div>
+    );
 
   return (
     <div className="flex min-h-[calc(100dvh-118px)] flex-col">
@@ -725,7 +787,28 @@ function CoachNotes({ coach, showChange = true }: { coach: Coach; showChange?: b
               <span className="underline decoration-red decoration-wavy decoration-2 underline-offset-4">&ldquo;{coach.change.quote}&rdquo;</span>
             )}{" "}
             {coach.change.why}
+            {coach.change.cdc && CDC_URL[coach.change.cdc] && (
+              <a
+                href={CDC_URL[coach.change.cdc]}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 flex items-center gap-1.5 text-sm font-semibold underline underline-offset-[3px]"
+              >
+                <Info size={15} /> From {coach.change.cdc}
+              </a>
+            )}
           </p>
+        </div>
+      )}
+      {coach.heard && (
+        <div className="flex items-start gap-2.5 border-t border-line pt-3.5">
+          <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange text-[15px] font-extrabold">
+            S
+          </span>
+          <div>
+            <span className="label-caps">How Sam heard it</span>
+            <p className="mt-1 rounded-[18px] rounded-tl-md bg-peach px-3.5 py-2.5 text-base italic leading-snug">&ldquo;{coach.heard}&rdquo;</p>
+          </div>
         </div>
       )}
     </section>

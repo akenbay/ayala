@@ -32,6 +32,7 @@ const Body = z.object({
     )
     .min(1)
     .max(3),
+  situation: z.string().max(400).optional(),
 });
 
 /** Feedback on the whole practice conversation. Falls back to the code coach without a model. */
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
     scenarioId: body.scenarioId as ScenarioId,
     transfer: body.transfer,
     age: body.age,
+    situation: body.situation,
     turns: body.turns.map((t) => ({ ...t, card: t.card as unknown as Scorecard })),
   });
   return json(result);

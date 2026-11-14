@@ -79,6 +79,13 @@ When you press **See my score**, `/api/coach` reads the whole practice: your rep
 
 ChatGPT writes these when a key is set; each part that fails a rule is replaced by the code version, and without a key the code coach builds all four (`lib/coach.ts`). The retry then shows your own Change note as the tip, and **Need an idea?** offers your improved sentence.
 
+## Start quiz, your own moment, and safety
+
+- **Start quiz** (`/start`, 7 taps, about 60 seconds, no email): who you are, the child's age, boy or girl, temperament, hardest moments, what you usually do, and when it happens. Sam then talks like that child (a "big feelings" boy protests louder; a sensitive child sounds teary), what you usually do sets your first focus skill (gives in → holds the limit, yells → calm voice, freezes → clear direction), and the hardest time sets the default reminder.
+- **Your own moment** (`/moment`): describe your real situation and Sam plays it, with an opening line written for it. **Today I lost it** adds what you actually said; it is ready to send, so you see how Sam hears it, get coached, and practice a better way. Same checks, same coach.
+- **Crisis safety** (`lib/safety.ts`): every message and situation is checked in code before anything else. Self-harm, fear of hurting a child, feeling unable to go on, or violence at home stops the practice and shows the 988 Suicide & Crisis Lifeline, the National Maternal Mental Health Hotline (1-833-TLC-MAMA), Childhelp (1-800-422-4453) or the National Domestic Violence Hotline, plus 911 for immediate danger. Nothing is scored. Practice sentences like "I won't let you hit" do not trigger it (tested).
+- **CDC grounding**: the coach may only give advice from a short playbook of CDC rules (`lib/rubric/cdc.ts`), each tied to a page: Giving Directions, Steps for Giving Good Directions, How to Use Time-In, Tips for Using Consequences, Tips for Responding to Behavior. Each "Change" note links its page. "How Sam heard it" shows the child's view in one gentle sentence.
+
 ## Stack
 
 - Next.js 16 (App Router) with TypeScript, Tailwind CSS 4

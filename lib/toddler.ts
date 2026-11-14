@@ -10,7 +10,7 @@ import {
   twoOkChoices,
 } from "./rubric/codeChecks";
 import type { CheckId } from "./rubric/types";
-import { SCENARIOS, describe, type ScenarioId } from "./scenarios";
+import { SCENARIOS, describeWith, type ScenarioId } from "./scenarios";
 
 /** The parent gets at most this many replies before the practice ends on its own. */
 export const MAX_PARENT_TURNS = 3;
@@ -85,9 +85,21 @@ const STATE_GUIDE: Record<SamState, string> = {
 const MELTDOWN = ["NOOO! You're mean!", "I'm NOT going! NO!", "No no NO! I hate this!"];
 const GAVE_IN = ["Yay! Okay!", "Yay! More!", "Okay! I play more!"];
 
-function systemPrompt(age: number, scenario: string, state: SamState): string {
+/** From the start quiz: shapes how Sam talks, never the state decision (that stays in code). */
+export type ChildProfile = { sex?: "boy" | "girl" | "unsaid"; temperament?: "calm" | "active" | "fiery" | "sensitive" };
+
+const TEMPERAMENT: Record<NonNullable<ChildProfile["temperament"]>, string> = {
+  calm: "Sam is usually calm and quiet, so protests are short and quiet.",
+  active: "Sam is very active and always moving, and keeps talking about the fun thing.",
+  fiery: "Sam is hot-tempered with big emotions, so protests are loud and dramatic.",
+  sensitive: "Sam is sensitive and cries easily, so protests sound sad and teary.",
+};
+
+function systemPrompt(age: number, scenario: string, state: SamState, child?: ChildProfile): string {
   const words = age <= 2 ? "2 to 5 words" : age === 3 ? "3 to 8 words" : "4 to 10 words";
-  return `You play Sam, a fictional ${age} year old, in a practice exercise for parents. Situation: ${scenario}
+  const who = child?.sex === "boy" ? "a little boy" : child?.sex === "girl" ? "a little girl" : "a child";
+  const temper = child?.temperament ? ` ${TEMPERAMENT[child.temperament]}` : "";
+  return `You play Sam, a fictional ${age} year old (${who}), in a practice exercise for parents. Situation: ${scenario}${temper}
 
 Write Sam's next line. It must answer what the parent JUST said, the way a real ${age} year old would. Use ${words}, simple words, one short sentence.
 
@@ -112,6 +124,8 @@ export async function toddlerReply(opts: {
   context?: string;
   history: ChatMessage[]; // the last message is the parent's
   passed?: Partial<Record<CheckId, boolean>>; // the latest scorecard's checks, if the client has them
+  situation?: string; // the parent's own moment, for "custom"
+  child?: ChildProfile;
 }): Promise<{ reply: string; state: SamState; degraded: boolean }> {
   const { scenarioId, transfer, age, history } = opts;
   const context = (opts.context ?? "").replace(/[<>]/g, "").slice(0, 120).trim();
@@ -126,7 +140,12 @@ export async function toddlerReply(opts: {
   if (!llmAvailable()) return fallback();
   try {
     const reply = await callLlm({
-      system: systemPrompt(age, describe(scenarioId, transfer).description + (context ? ` Extra context from the parent: ${context}` : ""), state),
+      system: systemPrompt(
+        age,
+        describeWith(scenarioId, transfer, opts.situation).description + (context ? ` Extra context from the parent: ${context}` : ""),
+        state,
+        opts.child,
+      ),
       messages: history,
       maxTokens: 60,
       timeoutMs: 12000,
@@ -142,5 +161,23 @@ export async function toddlerReply(opts: {
   } catch (err) {
     console.error("toddler failed:", (err as Error).message);
     return fallback();
+  }
+}
+
+/** Sam's first line for the parent's own moment. Falls back to a generic protest. */
+export async function toddlerOpener(opts: { age: number; situation: string; child?: ChildProfile }): Promise<string> {
+  const generic = "No! I don't want to!";
+  if (!llmAvailable()) return generic;
+  try {
+    const reply = await callLlm({
+      system: systemPrompt(opts.age, describeWith("custom", false, opts.situation).description, "resisting", opts.child),
+      messages: [{ role: "user", content: "(The practice begins. Say Sam's first protest in this situation.)" }],
+      maxTokens: 40,
+      timeoutMs: 10000,
+    });
+    const clean = reply.replace(/^["'“]|["'”]$/g, "").split("\n")[0].replace(/\s*[—–]\s*/g, ", ").replace(/\*[^*]+\*/g, "").trim().slice(0, 140);
+    return clean || generic;
+  } catch {
+    return generic;
   }
 }

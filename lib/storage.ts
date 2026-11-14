@@ -35,6 +35,28 @@ export type Store = {
   attempts: Attempt[];
   plan: PlanDay[];
   unlocked: boolean;
+  custom?: { situation: string; said?: string }; // the parent's own moment
+  profile?: Profile; // answers from the start quiz
+};
+
+/** A reminder time that lands before the hard moment the parent named. */
+export const REMINDER_TIME: Record<NonNullable<Profile["when"]>, string> = {
+  morning: "07:00",
+  after_daycare: "16:30",
+  dinner: "17:30",
+  bedtime: "19:00",
+  public: "10:00",
+};
+
+/** Answers from the 60 second start quiz. Nothing here identifies the parent or the child. */
+export type Profile = {
+  role?: "mom" | "dad" | "other";
+  sex?: "boy" | "girl" | "unsaid";
+  temperament?: "calm" | "active" | "fiery" | "sensitive";
+  hardest?: string[]; // moments the parent picked
+  usual?: "yell" | "give_in" | "threaten" | "freeze" | "calm";
+  when?: "morning" | "after_daycare" | "dinner" | "bedtime" | "public";
+  focus?: Dimension; // predicted weakest skill, until real practice says otherwise
 };
 
 const KEY = "ayala:v1";
@@ -166,8 +188,8 @@ export const FOCUS_TIPS: Record<Dimension, string> = {
 };
 
 /** Builds a 7 day plan aimed at the weakest dimension, rotating scenarios. */
-export function buildPlan(attempts: Attempt[]): PlanDay[] {
-  const focus = weakestDimension(attempts) ?? "emotional_response";
+export function buildPlan(attempts: Attempt[], fallbackFocus?: Dimension): PlanDay[] {
+  const focus = weakestDimension(attempts) ?? fallbackFocus ?? "emotional_response";
   const order = SCENARIO_LIST.map((s) => s.id);
   const start = attempts.length ? order.indexOf(attempts[attempts.length - 1].scenarioId) : 0;
   return Array.from({ length: 7 }, (_, i) => ({
