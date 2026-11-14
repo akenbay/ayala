@@ -40,6 +40,34 @@ export type Store = {
   lesson?: string | null; // the lesson the parent just read, shown as the focus of the next practice
   lessonsRead?: string[]; // lessons the parent has opened
   profile?: Profile; // answers from the start quiz
+  phrases?: Phrase[]; // the parent's phrase bank
+  helpUses?: HelpUse[]; // "Help me now" scripts opened
+  plus?: PlusInfo; // billing details for this device's Plus
+};
+
+/** A sentence the parent saved to reuse at home. */
+export type Phrase = {
+  id: string;
+  text: string;
+  scenarioId: ScenarioId;
+  situation: string; // short label, e.g. "Leaving the playground"
+  score?: number;
+  createdAt: string;
+  /** Answer to "Did you try it at home?". Missing until asked. */
+  home?: "worked" | "not_yet" | "didnt_work";
+  homeAt?: string;
+};
+
+/** One "Help me now" script the parent opened, and whether it helped. */
+export type HelpUse = { id: string; situation: string; createdAt: string; helped?: boolean };
+
+export type PlusInfo = {
+  since: string;
+  plan?: "monthly" | "annual";
+  checkoutSessionId?: string; // lets this device pause or manage the subscription
+  demo?: boolean; // unlocked without Stripe
+  pausedUntil?: string;
+  restored?: boolean; // unlocked again by email on this device
 };
 
 /** A reminder time that lands before the hard moment the parent named. */
@@ -284,4 +312,120 @@ export function reminderIcs(time: string, url: string, focusTip: string): string
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
+}
+
+// ---------- Phrase bank ----------
+
+/** Free devices keep this many phrases; Plus keeps them all. */
+export const FREE_PHRASES = 3;
+
+export function canSavePhrase(s: Pick<Store, "phrases" | "unlocked">): boolean {
+  return s.unlocked || (s.phrases?.length ?? 0) < FREE_PHRASES;
+}
+
+/** Adds a phrase unless the same words are already saved. Returns false when the free limit is reached. */
+export function addPhrase(s: Store, p: Omit<Phrase, "id" | "createdAt">, now = new Date()): boolean {
+  const text = p.text.trim();
+  if (!text) return false;
+  const list = s.phrases ?? [];
+  if (list.some((x) => x.text.trim().toLowerCase() === text.toLowerCase())) return true;
+  if (!canSavePhrase(s)) return false;
+  s.phrases = [{ ...p, text, id: newId(), createdAt: now.toISOString() }, ...list].slice(0, 200);
+  return true;
+}
+
+export function removePhrase(s: Store, id: string) {
+  s.phrases = (s.phrases ?? []).filter((p) => p.id !== id);
+}
+
+export function markPhraseHome(s: Store, id: string, home: NonNullable<Phrase["home"]>, now = new Date()) {
+  s.phrases = (s.phrases ?? []).map((p) => (p.id === id ? { ...p, home, homeAt: now.toISOString() } : p));
+}
+
+/**
+ * The saved phrase to ask "Did you try it at home?" about: saved at least 8 hours ago,
+ * never answered, or answered "not yet" more than a day ago. Newest first.
+ */
+export function phraseToCheck(phrases: Phrase[] | undefined, now = Date.now()): Phrase | null {
+  const due = (phrases ?? []).filter((p) => {
+    const saved = now - Date.parse(p.createdAt);
+    if (!p.home) return saved >= 8 * 3_600_000;
+    if (p.home === "not_yet" && p.homeAt) return now - Date.parse(p.homeAt) >= 24 * 3_600_000;
+    return false;
+  });
+  return due[0] ?? null;
+}
+
+// ---------- Monthly recap ----------
+
+export type Recap = {
+  days: number;
+  moments: number; // practices started (first tries and own moments)
+  retries: number;
+  helpUses: number;
+  helped: number;
+  phrasesSaved: number;
+  workedAtHome: number;
+  /** Per skill: the first practice in the window against the average of the last three after it. */
+  skills: { d: Dimension; from: number; to: number }[];
+};
+
+export function monthlyRecap(s: Pick<Store, "attempts" | "phrases" | "helpUses">, now = Date.now(), days = 30): Recap {
+  const since = now - days * 86_400_000;
+  const inWindow = (iso: string) => Date.parse(iso) >= since && Date.parse(iso) <= now;
+  const attempts = s.attempts.filter((a) => inWindow(a.createdAt));
+  const phrases = (s.phrases ?? []).filter((p) => inWindow(p.createdAt));
+  const help = (s.helpUses ?? []).filter((h) => inWindow(h.createdAt));
+  const skills: Recap["skills"] = [];
+  for (const d of DIMENSIONS) {
+    const vals = attempts.map((a) => a.byDimension[d]).filter((v): v is number => typeof v === "number");
+    if (vals.length < 2) continue;
+    const last = vals.slice(1).slice(-3); // never average the starting point into the result
+    skills.push({ d, from: vals[0], to: Math.round(last.reduce((x, y) => x + y, 0) / last.length) });
+  }
+  return {
+    days,
+    moments: attempts.filter((a) => a.kind === "first").length,
+    retries: attempts.filter((a) => a.kind !== "first").length,
+    helpUses: help.length,
+    helped: help.filter((h) => h.helped).length,
+    phrasesSaved: phrases.length,
+    workedAtHome: (s.phrases ?? []).filter((p) => p.home === "worked" && p.homeAt && inWindow(p.homeAt)).length,
+    skills: skills.sort((a, b) => b.to - b.from - (a.to - a.from)),
+  };
+}
+
+/** The next renewal date for a plan bought on `since`, after `now`. */
+export function nextRenewal(since: string, plan: "monthly" | "annual", now = new Date()): Date {
+  const d = new Date(since);
+  while (d.getTime() <= now.getTime()) {
+    if (plan === "annual") d.setFullYear(d.getFullYear() + 1);
+    else d.setMonth(d.getMonth() + 1);
+  }
+  return d;
+}
+
+// ---------- Plus gates for repeat value ----------
+
+/** Free devices get one own moment ("Your own moment" or "Today I lost it"); Plus has no limit. */
+export const FREE_OWN_MOMENTS = 1;
+
+export function ownMomentsUsed(s: Pick<Store, "attempts">): number {
+  return s.attempts.filter((a) => !a.demo && a.scenarioId === "custom" && a.kind === "first").length;
+}
+
+export function ownMomentLocked(s: Pick<Store, "attempts" | "unlocked">): boolean {
+  return !s.unlocked && ownMomentsUsed(s) >= FREE_OWN_MOMENTS;
+}
+
+/** Saved phrases that fit a moment: the same built-in scenario, or own moments that mention one of the keywords. */
+export function phrasesFor(phrases: Phrase[] | undefined, scenarioId: ScenarioId, keywords: string[] = []): Phrase[] {
+  return (phrases ?? []).filter((p) =>
+    scenarioId !== "custom" ? p.scenarioId === scenarioId : p.scenarioId === "custom" && keywords.some((k) => p.situation.toLowerCase().includes(k)),
+  );
+}
+
+/** The current time. Components call it only after the browser store has loaded, never during prerender. */
+export function clock(): Date {
+  return new Date();
 }

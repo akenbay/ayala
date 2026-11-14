@@ -33,6 +33,7 @@ export function PlanPicker({ onUnlocked }: { onUnlocked?: () => void }) {
       if (d.demo) {
         update((s) => {
           s.unlocked = true;
+          s.plus = { since: new Date().toISOString(), plan, demo: true };
         });
         setMsg("Stripe isn't configured on this server, so Plus was unlocked in demo mode.");
         onUnlocked?.();

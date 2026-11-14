@@ -38,6 +38,7 @@ import { CrisisCard } from "@/components/CrisisCard";
 import { Sam, faceFor } from "@/components/Sam";
 import { lessonById } from "@/lib/lessons";
 import { PlanPicker } from "@/components/PlanPicker";
+import { SavePhrase } from "@/components/PhraseBank";
 import { DIMENSION_LABELS } from "@/lib/rubric/types";
 import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
 import { Mic, Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info } from "@/components/icons";
@@ -349,6 +350,7 @@ export default function PracticePage() {
             b={results.retry}
             coach={coaches.retry}
             scenarioId={scenarioId}
+            ownSituation={customOpen?.scene ?? own?.situation}
             onTransfer={() => {
               if (store?.unlocked) startChat("transfer");
               else {
@@ -1030,7 +1032,18 @@ function CoachNotes({
   );
 }
 
-function Improved({ rewrite }: { rewrite: NonNullable<Coach["rewrite"]> }) {
+/** A short label for where a phrase came from, shown in the phrase bank. */
+function phraseSituation(a: Attempt, ownSituation?: string): string {
+  if (a.kind === "transfer") return SCENARIOS[a.scenarioId].transfer.title;
+  if (a.scenarioId === "custom") {
+    const t = (ownSituation ?? "Your own moment").trim();
+    return t.length > 60 ? t.slice(0, 57).trimEnd() + "…" : t;
+  }
+  return SCENARIOS[a.scenarioId].short;
+}
+
+function Improved({ rewrite, attempt }: { rewrite: NonNullable<Coach["rewrite"]>; attempt: Attempt }) {
+  const own = useStore()?.custom?.situation;
   return (
     <section aria-label="Your words, improved" className="flex flex-col gap-2.5 rounded-2xl bg-peach p-[18px]">
       <span className="label-caps text-ink">Your words, improved</span>
@@ -1045,6 +1058,7 @@ function Improved({ rewrite }: { rewrite: NonNullable<Coach["rewrite"]> }) {
       <p className="text-sm text-soft-ink">
         Highlighted words are new. Same checks: {rewrite.before} → <b className="text-ink">{rewrite.after}</b>.
       </p>
+      <SavePhrase text={rewrite.text} scenarioId={attempt.scenarioId} situation={phraseSituation(attempt, own)} score={rewrite.after} />
     </section>
   );
 }
@@ -1072,7 +1086,7 @@ function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: C
       </div>
       {c?.rewrite && (
         <div className="anim-rise" style={{ animationDelay: "160ms" }}>
-          <Improved rewrite={c.rewrite} />
+          <Improved rewrite={c.rewrite} attempt={attempt} />
         </div>
       )}
 
@@ -1192,7 +1206,12 @@ function Paywall({ onContinue }: { onContinue: () => void }) {
           </li>
         ))}
       </ol>
-      <p className="-mt-1 text-[15px] font-semibold">Day 1 done. Keep going with Plus: a 2 minute practice a day on your weakest skill.</p>
+      <p className="-mt-1 text-[15px] font-semibold">Day 1 done. With Plus you also get:</p>
+      <ul className="-mt-1 flex flex-col gap-1.5 text-[15px] text-soft-ink">
+        <li>✓ Practice every real moment: unlimited Your own moment and Today I lost it</li>
+        <li>✓ All your saved phrases, shown first in Help me now</li>
+        <li>✓ New situations with no tips, and new moments as your child grows</li>
+      </ul>
       <PlanPicker onUnlocked={() => undefined} />
       <button type="button" onClick={onContinue} className="min-h-12 text-[16px] font-semibold underline underline-offset-[3px]">
         Not now, continue free
@@ -1207,12 +1226,14 @@ function Compare({
   coach,
   scenarioId,
   onTransfer,
+  ownSituation,
 }: {
   a: Attempt;
   b: Attempt;
   coach?: Coach | "loading";
   scenarioId: ScenarioId;
   onTransfer: () => void;
+  ownSituation?: string;
 }) {
   const ta = a.turns[0];
   const tb = b.turns[0];
@@ -1271,6 +1292,11 @@ function Compare({
             <Highlighted text={tb.parent} checks={tb.card.checks} />
           </p>
           {gained[0] && <p className="mt-1 text-[15px] text-soft-ink">Biggest change: {gained[0].label.toLowerCase()}.</p>}
+          {tb.card.total >= 60 && (
+            <div className="mt-1.5">
+              <SavePhrase text={tb.parent} scenarioId={b.scenarioId} situation={phraseSituation(b, ownSituation)} score={tb.card.total} />
+            </div>
+          )}
         </div>
       </section>
 
@@ -1320,14 +1346,19 @@ function Done({ first, retry, transfer, coach }: { first?: Attempt; retry?: Atte
       </div>
 
       {typeof coach === "object" ? <CoachNotes coach={coach} showChange={transfer.total < 85} /> : coach === "loading" ? <CoachLoading /> : <YourWords turn={t} />}
-      {typeof coach === "object" && coach.rewrite && transfer.total < 85 && <Improved rewrite={coach.rewrite} />}
+      {typeof coach === "object" && coach.rewrite && transfer.total < 85 && <Improved rewrite={coach.rewrite} attempt={transfer} />}
 
       <section className="flex flex-col gap-2 rounded-3xl bg-peach p-5">
-        <span className="label-caps text-amber-text">Keep it going</span>
-        <h2 className="text-[24px] font-extrabold leading-tight">One short practice a day</h2>
-        <p className="text-[17px] leading-snug">Your 7 day plan targets your weakest skill. Day 1 is free.</p>
-        <Link href="/progress" className="btn-primary mt-1.5 h-14 text-lg">
-          See my plan <Arrow size={20} />
+        <span className="label-caps text-amber-text">For the next hard moment</span>
+        <h2 className="text-[24px] font-extrabold leading-tight">Your words are ready when you need them</h2>
+        <p className="text-[17px] leading-snug">
+          Saved phrases show first in <b>Help me now</b>. When something new happens, practice that exact moment.
+        </p>
+        <Link href="/help" className="btn-primary mt-1.5 h-14 text-lg">
+          Open Help me now <Arrow size={20} />
+        </Link>
+        <Link href="/progress" className="text-center text-[15px] font-semibold underline underline-offset-[3px]">
+          See my phrases and plan
         </Link>
       </section>
       <Link href="/" className="btn-ghost">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bars } from "./icons";
+import { Bars, Bolt } from "./icons";
 
 const PARTS = [
   { id: "about", label: "About" },
@@ -54,6 +54,14 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/help"
+            aria-label="Help me now"
+            className="flex h-10 items-center gap-1.5 rounded-full bg-orange px-3 text-[15px] font-bold text-ink sm:px-4"
+          >
+            <Bolt size={18} />
+            <span className="hidden sm:inline">Help now</span>
+          </Link>
           <Link href="/pricing" className="hidden h-10 items-center rounded-full px-4 text-[15px] font-semibold hover:bg-white sm:flex">
             Plus
           </Link>

@@ -33,11 +33,13 @@ export async function POST(req: Request) {
             recurring: { interval: plan.interval },
             product_data: {
               name: planId === "annual" ? "Ayala Plus (annual)" : "Ayala Plus",
-              description: "All scenarios, the full 7 day practice plan, saved progress.",
+              description: "Unlimited own moments, your full phrase bank, new moments as your child grows.",
             },
           },
         },
       ],
+      metadata: { plan: planId },
+      subscription_data: { metadata: { plan: planId } },
       success_url: `${base}/pricing?status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/pricing?status=cancel`,
     });

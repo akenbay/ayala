@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SCENARIOS, SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
 import { LESSONS, lessonForSkill, lessonSource, type Lesson } from "@/lib/lessons";
-import { focusLabel, resetStore, update, useStore, weakestDimension, type Age } from "@/lib/storage";
+import { focusLabel, ownMomentLocked, resetStore, update, useStore, weakestDimension, type Age } from "@/lib/storage";
 import { TEST_CARD } from "@/lib/pricing";
-import { Arrow, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
+import { Arrow, Bolt, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
+import { HomeCheck } from "@/components/PhraseBank";
 import { Sam } from "@/components/Sam";
 
 const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3, custom: 3 };
@@ -67,11 +68,11 @@ export default function Home() {
     },
     {
       key: "habit",
-      title: "Keep going: 2 minutes a day",
-      detail: "Your 7 day plan and a reminder before the hard hour.",
-      done: (store?.plan.filter((p) => p.done).length ?? 0) >= 2,
-      go: () => router.push("/progress"),
-      cta: "Open my plan",
+      title: "Bring the next hard moment here",
+      detail: "Use Help me now in the moment, or practice what really happened today.",
+      done: real.some((a) => a.scenarioId === "custom") || (store?.helpUses?.length ?? 0) > 0,
+      go: () => router.push("/moment"),
+      cta: "Practice my own moment",
     },
   ];
   const current = steps.findIndex((x) => !x.done);
@@ -125,16 +126,31 @@ export default function Home() {
           Learn one idea from CDC guidance, then rehearse it with Sam, a pretend toddler.
         </p>
 
+        <Link
+          href="/help"
+          className="anim-rise mx-auto mt-5 flex max-w-xl items-center gap-4 rounded-3xl bg-ink px-5 py-4 text-cream shadow-soft transition active:scale-[0.99]"
+          style={{ animationDelay: "90ms" }}
+        >
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange text-ink">
+            <Bolt size={24} />
+          </span>
+          <span className="flex flex-1 flex-col">
+            <span className="text-[19px] font-extrabold leading-tight">What do I say right now?</span>
+            <span className="text-[14px] text-cream/80">A meltdown is happening. One tap, three lines to say.</span>
+          </span>
+          <Arrow size={20} />
+        </Link>
+
         <div className="anim-rise mx-auto mt-6 max-w-xl rounded-3xl bg-white p-5 shadow-soft" style={{ animationDelay: "100ms" }}>
           <p className="text-[13px] font-bold uppercase tracking-wide text-amber-text">What is Ayala</p>
           <p className="mt-1.5 text-[16px] font-semibold leading-snug">
-            A speaking gym for parents of 1 to 4 year olds. Tantrums go better when the right words are already ready, so here you say them out loud a few times first.
+            A speaking gym for parents of 2 to 4 year olds. Tantrums go better when the right words are already ready, so here you say them out loud a few times first.
           </p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-3">
             {[
               { h: "Learn", t: "Short ideas from CDC parenting guidance, with the source linked." },
               { h: "Practice", t: "Stories with Sam, a pretend toddler who reacts to your words." },
-              { h: "Improve", t: "What worked, one thing to change, and how Sam heard it." },
+              { h: "Improve", t: "What worked, one thing to change, and your best words saved for next time." },
             ].map((x, i) => (
               <li key={x.h} className="flex gap-3 sm:flex-col sm:gap-1.5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-peach text-[14px] font-extrabold">{i + 1}</span>
@@ -145,10 +161,11 @@ export default function Home() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 border-t border-line pt-3 text-[13px] text-muted">About 3 minutes a day. No account, everything stays on your phone.</p>
+          <p className="mt-4 border-t border-line pt-3 text-[13px] text-muted">Practice before the hard moments, get words during them. No account, everything stays on your phone.</p>
         </div>
 
-        <div className="anim-rise mx-auto mt-5 max-w-md" style={{ animationDelay: "120ms" }}>
+        <div className="anim-rise mx-auto mt-5 flex max-w-md flex-col gap-3" style={{ animationDelay: "120ms" }}>
+          <HomeCheck />
           {store && current < 0 && nextPlan && (
             <button
               type="button"
@@ -322,14 +339,17 @@ export default function Home() {
             );
           })}
           <Link
-            href="/moment"
+            href={store && ownMomentLocked(store) ? "/pricing?from=moment" : "/moment"}
             className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl border-[1.5px] border-dashed border-field bg-paper p-4 transition duration-150 hover:border-ink active:scale-[0.98]"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach">
-              <ScenarioIcon id="custom" size={24} />
+            <span className="flex w-full items-start justify-between">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach">
+                <ScenarioIcon id="custom" size={24} />
+              </span>
+              {store && ownMomentLocked(store) && <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-cream">Plus</span>}
             </span>
             <span className="mt-auto text-[17px] font-bold leading-tight">Your own moment</span>
-            <span className="text-[13px] text-muted">Or what you said today</span>
+            <span className="text-[13px] text-muted">{store && ownMomentLocked(store) ? "Your first one was free" : "Or what you said today. First one free"}</span>
           </Link>
         </div>
       </section>
@@ -379,6 +399,7 @@ export default function Home() {
           <li>Or open a lesson under <b>Learn</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
           <li>Reply to Sam (type or tap the mic). Sam&apos;s face and status show how it&apos;s going; the practice ends when Sam goes along, melts down or gets their way.</li>
           <li><b>See my score</b>: one thing to keep, one to change (with its CDC page), your own words improved and re-scored. Retry, see the gain, then a new situation with no tips.</li>
+          <li><b>What do I say right now?</b>: one tap, a short script, no score. Saved phrases show first.</li>
           <li><b>Your own moment</b> or <b>Today I lost it</b>. Typing &ldquo;I can&apos;t do this anymore&rdquo; shows the crisis safety screen.</li>
           <li><b>Your progress</b>: plan and calendar reminder; <b>See a sample week</b> shows labeled demo data. <b>Plus</b> uses Stripe test card <code className="font-mono font-semibold">{TEST_CARD}</code>.</li>
         </ol>

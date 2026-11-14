@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MAX_SITUATION } from "@/lib/scenarios";
 import { MAX_CHARS } from "@/lib/rubric/validate";
 import { detectCrisis, type Crisis } from "@/lib/safety";
-import { update, useStore } from "@/lib/storage";
+import { FREE_OWN_MOMENTS, ownMomentLocked, update, useStore } from "@/lib/storage";
 import { CrisisCard } from "@/components/CrisisCard";
 import { Arrow, Back } from "@/components/icons";
 
@@ -26,6 +26,16 @@ export default function MomentPage() {
   const [error, setError] = useState("");
   const [crisis, setCrisis] = useState<Crisis["kind"] | null>(null);
   const age = store?.childAge ?? 3;
+  const locked = store ? ownMomentLocked(store) : false;
+
+  // Help me now links here with ?mode=lost after "I yelled".
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") !== "lost") return;
+    (async () => {
+      await Promise.resolve();
+      setMode("lost");
+    })();
+  }, []);
 
   function start() {
     const s = situation.trim();
@@ -33,6 +43,10 @@ export default function MomentPage() {
     const c = detectCrisis(`${s} ${w}`);
     if (c) {
       setCrisis(c.kind);
+      return;
+    }
+    if (locked) {
+      router.push("/pricing?from=moment");
       return;
     }
     if (s.split(/\s+/).length < 4) {
@@ -138,8 +152,13 @@ export default function MomentPage() {
 
       {error && <p className="text-sm font-semibold text-bad">{error}</p>}
 
-      <button type="button" className="btn-primary h-14 text-lg" onClick={start} disabled={!situation.trim()}>
-        Start practicing <Arrow size={20} />
+      {locked && (
+        <p className="rounded-2xl bg-peach px-4 py-3 text-[15px]">
+          You&apos;ve used your free own moment{FREE_OWN_MOMENTS > 1 ? "s" : ""}. <b>Plus</b> lets you practice every real moment, as often as it happens.
+        </p>
+      )}
+      <button type="button" className="btn-primary h-14 text-lg" onClick={start} disabled={!situation.trim() && !locked}>
+        {locked ? "Unlock with Plus" : "Start practicing"} <Arrow size={20} />
       </button>
       <p className="text-center text-[13px] text-muted">Sam is a practice character. Scores use the same CDC based checks.</p>
     </div>

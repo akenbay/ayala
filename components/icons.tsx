@@ -103,6 +103,20 @@ export const Chat = (p: P) => (
   </Svg>
 );
 
+/** Lightning bolt: "Help me now". */
+export const Bolt = (p: P) => (
+  <Svg {...p}>
+    <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+  </Svg>
+);
+
+/** Bookmark: save a phrase. */
+export const Bookmark = (p: P) => (
+  <Svg {...p}>
+    <path d="M6 3h12v18l-6-4-6 4V3Z" />
+  </Svg>
+);
+
 export const Mic = (p: P) => (
   <Svg {...p}>
     <rect x="9" y="3" width="6" height="11" rx="3" />

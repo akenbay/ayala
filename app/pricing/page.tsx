@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 import { GUARANTEE, PLANS, TEST_CARD, type PlanId } from "@/lib/pricing";
 import { update, useStore } from "@/lib/storage";
 import { Spinner } from "@/components/ui";
+import { ManagePlus, RestorePlus } from "@/components/ManagePlus";
 
 const FEATURES: [string, string][] = [
-  ["All scenarios", "Hitting a sibling, plus every new moment we add (getting dressed, car seat, screen time)."],
-  ["The full 7 day plan", "One short daily practice aimed at your weakest skill."],
-  ["Saved progress", "Your history, best scores and skill trends in one place."],
-  ["New situations to test yourself", "Practice the skill in a new setting with no script."],
+  ["Every real moment, as often as it happens", "Unlimited Your own moment and Today I lost it. Practice what actually happened today, not a fixed lesson."],
+  ["Your phrase bank, with no limit", "Every improved sentence you save. Your own words show first when you open Help me now."],
+  ["New moments as your child grows", "Hitting a sibling today, and every built-in moment we add next (getting dressed, car seat, screens)."],
+  ["Prove the skill sticks", "New situations with no tips, your skill trends, and the full plan aimed at your weakest skill."],
 ];
 
 export default function PricingPage() {
@@ -36,10 +37,11 @@ export default function PricingPage() {
       setBusy(true);
       try {
         const r = await fetch(`/api/checkout/verify?session_id=${encodeURIComponent(sessionId)}`);
-        const d = (await r.json()) as { unlocked?: boolean };
+        const d = (await r.json()) as { unlocked?: boolean; plan?: PlanId };
         if (d.unlocked) {
           update((s) => {
             s.unlocked = true;
+            s.plus = { since: new Date().toISOString(), plan: d.plan ?? "monthly", checkoutSessionId: sessionId };
           });
           setMsg({ tone: "good", text: "Welcome to Plus. Everything is unlocked." });
         } else setMsg({ tone: "bad", text: "We couldn't confirm the payment. Try again." });
@@ -63,6 +65,7 @@ export default function PricingPage() {
       if (d.demo) {
         update((s) => {
           s.unlocked = true;
+          s.plus = { since: new Date().toISOString(), plan, demo: true };
         });
         setMsg({ tone: "info", text: "Stripe isn't configured on this server, so Plus was unlocked in demo mode." });
       } else {
@@ -78,8 +81,11 @@ export default function PricingPage() {
     <div className="mx-auto max-w-xl space-y-5 py-4">
       <div>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>
-        <h1 className="font-display mt-3 text-[32px] leading-tight">Keep practicing through the toddler years</h1>
-        <p className="mt-2 text-muted">The free practice shows what works. Plus makes it a habit: a few minutes a day, aimed at the skill you need most.</p>
+        <h1 className="font-display mt-3 text-[32px] leading-tight">Ready for the next hard moment, whatever it is</h1>
+        <p className="mt-2 text-muted">
+          Help me now stays free for everyone. Plus lets you practice every real moment as it happens, keeps all your best words, and grows with your child.
+          No daily streaks, no guilt.
+        </p>
       </div>
 
       {msg && (
@@ -91,6 +97,8 @@ export default function PricingPage() {
           {msg.text}
         </p>
       )}
+
+      <ManagePlus />
 
       <div className="card shadow-[inset_0_0_0_2px_#1C1608]">
         <fieldset>
@@ -134,9 +142,11 @@ export default function PricingPage() {
         </ul>
         {unlocked ? (
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-good-soft px-3 py-1.5 text-sm font-semibold text-good">You have Plus ✓</span>
-            <Link href="/" className="btn-primary">
-              Practice now
+            <Link href="/help" className="btn-primary">
+              Help me now
+            </Link>
+            <Link href="/moment" className="btn-ghost">
+              Practice my moment
             </Link>
             <Link href="/progress" className="btn-ghost">
               Open my plan
@@ -152,7 +162,8 @@ export default function PricingPage() {
             <li>
               <b className="text-ink">{GUARANTEE}.</b> Not helpful? Get a full refund.
             </li>
-            <li>No account or email needed. The practice is free.</li>
+            <li>No account needed to practice. Help me now is always free.</li>
+            <li>Pause any month instead of cancelling. You keep your phrases.</li>
           </ul>
         )}
         <div className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm">
@@ -160,6 +171,8 @@ export default function PricingPage() {
           and any ZIP.
         </div>
       </div>
+
+      <RestorePlus />
 
       <div className="card">
         <p className="font-semibold">How it compares</p>

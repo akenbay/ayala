@@ -6,7 +6,22 @@ import { useEffect, useState } from "react";
 import { SCENARIOS } from "@/lib/scenarios";
 import { DIMENSION_LABELS, DIMENSIONS } from "@/lib/rubric/types";
 import { GUARANTEE, PLANS } from "@/lib/pricing";
-import { FOCUS_TIPS, REMINDER_TIME, buildPlan, demoWeekAttempts, focusLabel, reminderIcs, update, useStore, weakestDimension } from "@/lib/storage";
+import {
+  FOCUS_TIPS,
+  REMINDER_TIME,
+  buildPlan,
+  demoWeekAttempts,
+  focusLabel,
+  clock,
+  monthlyRecap,
+  nextRenewal,
+  reminderIcs,
+  update,
+  useStore,
+  weakestDimension,
+  type Store,
+} from "@/lib/storage";
+import { HomeCheck, PhraseList } from "@/components/PhraseBank";
 import { Arrow, Bell, Calendar, Check, ChevronDown } from "@/components/icons";
 import { Sam } from "@/components/Sam";
 
@@ -32,6 +47,45 @@ function Sparkline({ values }: { values: number[] }) {
       {/* A zero-length round line stays a round dot even though the chart is stretched. */}
       <line x1={last[0]} y1={last[1]} x2={last[0]} y2={last[1]} stroke="#2E7D4F" strokeWidth={9} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
+  );
+}
+
+/** The last 30 days in one card: what the parent handled, saved and improved. Shown before each renewal too. */
+function MonthRecap({ store }: { store: Store }) {
+  const now = clock().getTime();
+  const r = monthlyRecap(store, now);
+  const renews = store.unlocked && store.plus?.since && store.plus.plan && !store.plus.demo ? nextRenewal(store.plus.since, store.plus.plan, new Date(now)) : null;
+  const soon = renews && renews.getTime() - now < 5 * 86_400_000;
+  const stats: [number, string][] = [
+    [r.moments, r.moments === 1 ? "hard moment practiced" : "hard moments practiced"],
+    [r.helpUses, r.helpUses === 1 ? "time Help me now" : "times Help me now"],
+    [r.phrasesSaved, r.phrasesSaved === 1 ? "phrase saved" : "phrases saved"],
+    [r.workedAtHome, "worked at home"],
+  ];
+  const best = r.skills[0];
+  return (
+    <section aria-labelledby="recap-h" className="anim-rise flex flex-col gap-3 rounded-2xl bg-white p-[18px]">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 id="recap-h" className="text-[19px] font-extrabold">
+          Your last 30 days
+        </h2>
+        {soon && <span className="text-[13px] font-semibold text-amber-text">Renews {renews.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+      </div>
+      <ul className="grid grid-cols-2 gap-2.5">
+        {stats.map(([n, label]) => (
+          <li key={label} className="rounded-xl bg-cream px-3.5 py-3">
+            <span className="block text-[26px] font-extrabold leading-none">{n}</span>
+            <span className="mt-1 block text-[13px] leading-tight text-muted">{label}</span>
+          </li>
+        ))}
+      </ul>
+      {best && best.to !== best.from && (
+        <p className="text-[15px] leading-snug">
+          <b>{DIMENSION_LABELS[best.d]}:</b> {best.from} → <b className={best.to > best.from ? "text-good" : "text-bad"}>{best.to}</b> across your practices.
+        </p>
+      )}
+      <p className="text-[13px] text-muted">Practice scores measure your typed words, not you as a parent or your child&apos;s behavior.</p>
+    </section>
   );
 }
 
@@ -63,12 +117,13 @@ function Reminder({ tip, defaultTime }: { tip: string; defaultTime?: string }) {
     setSaved(true);
   }
   return (
-    <section aria-label="Daily reminder" className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3.5">
+    <section aria-label="Optional reminder" className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3.5">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream">
         <Bell size={20} />
       </span>
-      <label htmlFor="remindTime" className="flex-1 text-[17px] font-bold">
-        Remind me daily
+      <label htmlFor="remindTime" className="flex flex-1 flex-col text-[17px] font-bold">
+        Remind me before the hard hour
+        <span className="text-[13px] font-normal text-muted">Optional, for the next 7 days. Skip it if you&apos;d rather come when you need it.</span>
       </label>
       <input
         id="remindTime"
@@ -220,6 +275,12 @@ export default function ProgressPage() {
         </section>
       )}
 
+      <HomeCheck />
+
+      <MonthRecap store={store} />
+
+      <PhraseList />
+
       <Reminder
         tip={FOCUS_TIPS[weakest ?? store.profile?.focus ?? "emotional_response"]}
         defaultTime={store.profile?.when ? REMINDER_TIME[store.profile.when] : undefined}
@@ -282,7 +343,7 @@ export default function ProgressPage() {
 
       <section className="rounded-2xl bg-white p-[18px]">
         <h2 className="text-[19px] font-extrabold">Your 7 day plan</h2>
-        <p className="mt-1 text-[15px] text-muted">One short practice a day. Day 1 is free, the rest come with Plus.</p>
+        <p className="mt-1 text-[15px] text-muted">Short practices aimed at your weakest skill, whenever suits you. Day 1 is free, the rest come with Plus.</p>
         <ol className="mt-3 flex flex-col gap-2">
           {store.plan.map((p) => {
             const locked = isLocked(p.day, SCENARIOS[p.scenarioId].free);
@@ -349,7 +410,7 @@ export default function ProgressPage() {
         <section aria-label="Ayala Plus" className="flex flex-col gap-2 rounded-2xl border border-line bg-paper p-[18px]">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>
-            <span className="text-[17px] font-extrabold">All scenarios and the full 7 day plan</span>
+            <span className="text-[17px] font-extrabold">Every real moment, all your phrases</span>
           </div>
           <p className="text-base text-soft-ink">
             <b className="text-ink">From {PLANS.annual.perMonth}</b> billed yearly, or {PLANS.monthly.label}. {GUARANTEE}.

@@ -79,6 +79,21 @@ When you press **See my score**, `/api/coach` reads the whole practice: your rep
 
 ChatGPT writes these when a key is set; each part that fails a rule is replaced by the code version, and without a key the code coach builds all four (`lib/coach.ts`). The retry then shows your own Change note as the tip, and **Need an idea?** offers your improved sentence.
 
+## Retention: before, during and after the hard moment
+
+Parents don't need another daily obligation; they need help with the next hard moment. So Ayala is built to be useful on bad days, not to demand daily logins.
+
+| When | Feature | Where |
+|---|---|---|
+| During | **Help me now**: one tap, three lines to say, no chat, no score, works offline. Eight common moments plus "I yelled, how do I repair?". Free for everyone | `/help`, `lib/helpNow.ts` |
+| After | **Today I lost it** and **Your own moment**: practice what really happened. First one free, then Plus | `/moment` |
+| Building up | **Phrase bank**: save your improved sentence after a practice. Saved words show first in Help me now. 3 free, unlimited with Plus | `components/PhraseBank.tsx` |
+| Later visit | **Did you try it at home?** asked about a saved phrase 8+ hours later (It worked / Not yet / It didn't) | home, `/help`, `/progress` |
+| Monthly | **Your last 30 days**: moments practiced, Help me now uses, phrases saved, worked at home, biggest skill change, renewal date | `/progress` |
+| Billing | **Pause instead of cancel** (Stripe `pause_collection`, 30 days), Stripe portal to cancel or change card, **Restore Plus** by checkout email on a new device | `/pricing`, `app/api/subscription`, `app/api/restore` |
+
+Every Help me now script is tested against the same code rubric (80+ except the calm-first meltdown script) and against the crisis check (`tests/helpNow.test.ts`). Restore by email is test mode only; before real payments it should send a one-time link instead of unlocking directly.
+
 ## Learn, then practice
 
 The home page has four short lessons (`lib/lessons.ts`), each a plain-language summary of one CDC "Essentials for Parenting Toddlers and Preschoolers" topic: name the feeling first (Time-In), give one clear direction (Steps for Giving Good Directions), hold the limit calmly (Tips for Using Consequences), and safety first when it gets physical (Tips for Responding to Behavior). A lesson opens in place with three ideas, phrases to try, one thing to skip and the CDC link, then **Practice it** starts the matching moment with the lesson shown as the focus.
