@@ -105,8 +105,8 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* 1. Hero: one promise, one main action */}
-      <section className="pt-5 sm:pt-10">
+      {/* PART 1. About: what Ayala is, who it's for, and your path */}
+      <section id="about" aria-label="About Ayala" className="scroll-mt-36 pt-5 sm:pt-10">
         <div className="anim-rise relative mx-auto mb-2 flex w-full max-w-[300px] justify-center">
           <span aria-hidden className="absolute inset-x-6 bottom-2 top-8 rounded-full bg-peach blur-2xl" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -124,6 +124,29 @@ export default function Home() {
         <p className="anim-rise mx-auto mt-3 max-w-md text-center text-[17px] leading-relaxed text-muted" style={{ animationDelay: "80ms" }}>
           Learn one idea from CDC guidance, then rehearse it with Sam, a pretend toddler.
         </p>
+
+        <div className="anim-rise mx-auto mt-6 max-w-xl rounded-3xl bg-white p-5 shadow-soft" style={{ animationDelay: "100ms" }}>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-amber-text">What is Ayala</p>
+          <p className="mt-1.5 text-[16px] font-semibold leading-snug">
+            A speaking gym for parents of 1 to 4 year olds. Tantrums go better when the right words are already ready, so here you say them out loud a few times first.
+          </p>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[
+              { h: "Learn", t: "Short ideas from CDC parenting guidance, with the source linked." },
+              { h: "Practice", t: "Stories with Sam, a pretend toddler who reacts to your words." },
+              { h: "Improve", t: "What worked, one thing to change, and how Sam heard it." },
+            ].map((x, i) => (
+              <li key={x.h} className="flex gap-3 sm:flex-col sm:gap-1.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-peach text-[14px] font-extrabold">{i + 1}</span>
+                <span>
+                  <span className="block text-[15px] font-bold">{x.h}</span>
+                  <span className="block text-[14px] leading-snug text-muted">{x.t}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 border-t border-line pt-3 text-[13px] text-muted">About 3 minutes a day. No account, everything stays on your phone.</p>
+        </div>
 
         <div className="anim-rise mx-auto mt-5 max-w-md" style={{ animationDelay: "120ms" }}>
           {store && current < 0 && nextPlan && (
@@ -147,7 +170,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Your path: what to do first, then next */}
+      {/* Your path: what to do first, then next (still part of About) */}
       {store && (
         <section aria-labelledby="path-h" className="mt-9">
           <div className="flex items-baseline justify-between">
@@ -191,14 +214,15 @@ export default function Home() {
         </section>
       )}
 
-      {/* 2. Learn, then practice */}
-      <section aria-labelledby="learn-h" className="mt-9">
-        <div className="flex items-baseline justify-between">
-          <h2 id="learn-h" className="font-display text-[24px]">
-            All lessons
-          </h2>
-          <span className="text-[13px] text-muted">From CDC guidance</span>
-        </div>
+      {/* PART 2. Learn: materials from CDC guidance */}
+      <section id="learn" aria-labelledby="learn-h" className="mt-12 scroll-mt-36">
+        <p className="text-[13px] font-bold uppercase tracking-wide text-amber-text">Part 2</p>
+        <h2 id="learn-h" className="font-display text-[28px] leading-tight">
+          Learn
+        </h2>
+        <p className="mt-1 text-[15px] text-muted">
+          Ideas from the CDC&apos;s Essentials for Parenting. Each takes about 2 minutes and ends with a story to practice it.
+        </p>
         <ul className="mt-3 flex flex-col gap-3">
           {LESSONS.map((l, i) => (
             <LessonCard
@@ -217,19 +241,24 @@ export default function Home() {
         </ul>
       </section>
 
-      {/* 3. Practice a moment directly */}
-      <section aria-labelledby="practice-h" className="mt-9">
-        <div className="flex items-baseline justify-between">
-          <h2 id="practice-h" className="font-display text-[24px]">
-            Practice a moment
+      {/* PART 3. Stories: practice with Sam */}
+      <section id="stories" aria-labelledby="practice-h" className="mt-12 scroll-mt-36">
+        <p className="text-[13px] font-bold uppercase tracking-wide text-amber-text">Part 3</p>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="practice-h" className="font-display text-[28px] leading-tight">
+            Stories with Sam
           </h2>
-          <span className="text-[13px] text-muted">
+          <span className="shrink-0 text-[13px] text-muted">
             Age {age},{" "}
             <button type="button" onClick={() => setEditing((v) => !v)} aria-expanded={editing} className="font-semibold text-ink underline underline-offset-2">
               {editing ? "done" : "change"}
             </button>
           </span>
         </div>
+
+        <p className="mt-1 text-[15px] text-muted">
+          Pick a hard moment. Sam, a pretend toddler, reacts to what you say, and you get feedback on your own words.
+        </p>
 
         {editing && (
           <div className="anim-fade-down mt-3 space-y-4 rounded-2xl bg-white p-4">
@@ -347,7 +376,7 @@ export default function Home() {
         </summary>
         <ol className="anim-fade-down mt-3 list-decimal space-y-2 rounded-2xl bg-white p-5 pl-9 text-left text-[15px] leading-relaxed text-soft-ink">
           <li>Tap <b>Get my plan in 60 seconds</b>: 7 taps shape Sam (age, boy or girl, temperament), your first focus and a reminder time.</li>
-          <li>Or open a lesson under <b>All lessons</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
+          <li>Or open a lesson under <b>Learn</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
           <li>Reply to Sam (type or tap the mic). Sam&apos;s face and status show how it&apos;s going; the practice ends when Sam goes along, melts down or gets their way.</li>
           <li><b>See my score</b>: one thing to keep, one to change (with its CDC page), your own words improved and re-scored. Retry, see the gain, then a new situation with no tips.</li>
           <li><b>Your own moment</b> or <b>Today I lost it</b>. Typing &ldquo;I can&apos;t do this anymore&rdquo; shows the crisis safety screen.</li>
