@@ -170,7 +170,7 @@ export default function ProgressPage() {
         <div className="mt-5 flex flex-col items-center gap-3 rounded-2xl bg-white p-6 text-center">
           <h2 className="text-xl font-extrabold">No practice yet</h2>
           <p className="text-[17px] text-muted">Do one 2 minute practice and your progress and 7 day plan appear here.</p>
-          <Link href="/" className="btn-primary mt-2 w-full">
+          <Link href="/stories" className="btn-primary mt-2 w-full">
             Start practicing <Arrow size={20} />
           </Link>
           <button type="button" className="btn-ghost w-full" onClick={loadDemoWeek}>

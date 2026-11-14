@@ -1,6 +1,31 @@
 import type { Dimension } from "./rubric/types";
+import { MORE_SCENARIOS } from "./moreScenarios";
 
-export type ScenarioId = "leaving_playground" | "bedtime_refusal" | "hitting_sibling" | "custom";
+/** The twelve moments added after the first three (data in moreScenarios.ts). */
+export type MoreScenarioId =
+  | "screen_time"
+  | "getting_dressed"
+  | "car_seat"
+  | "bath_time"
+  | "brushing_teeth"
+  | "dinner_table"
+  | "store_candy"
+  | "sharing_toys"
+  | "cleanup_toys"
+  | "daycare_dropoff"
+  | "work_call"
+  | "running_off";
+
+export type ScenarioId = "leaving_playground" | "bedtime_refusal" | "hitting_sibling" | "custom" | MoreScenarioId;
+
+/** How the Stories page groups moments. */
+export type StoryGroup = "routines" | "out" | "feelings" | "safety";
+export const STORY_GROUPS: { id: StoryGroup; title: string; hint: string }[] = [
+  { id: "routines", title: "Daily routines", hint: "Bedtime, bath, getting dressed, screens" },
+  { id: "out", title: "Out and about", hint: "Leaving places, the car, the store" },
+  { id: "feelings", title: "Big feelings", hint: "Goodbyes, sharing, waiting for you" },
+  { id: "safety", title: "Safety first", hint: "Hitting and running off: the limit comes first" },
+];
 
 /** Short building blocks the code coach uses to repair a parent's own sentence. */
 export type CoachLines = { feeling: string; limit: string; choice: string };
@@ -21,6 +46,12 @@ export type Scenario = {
   id: ScenarioId;
   title: string;
   short: string;
+  group: StoryGroup;
+  minutes: number;
+  /** One line after "Your N year old ...", shown in the practice header. */
+  situation: { main: string; transfer: string };
+  /** The labeled sample behind "Need an idea?" on the first try. */
+  idea: string;
   description: string; // used in prompts
   childOpener: string;
   scripts: string[]; // curated, written from CDC guidance
@@ -38,6 +69,10 @@ export type Scenario = {
 export const SCENARIOS: Record<ScenarioId, Scenario> = {
   leaving_playground: {
     id: "leaving_playground",
+    group: "out",
+    minutes: 2,
+    situation: { main: "is on the slide and refuses to leave the playground.", transfer: "is playing with grandma's toys and won't put on shoes to go home." },
+    idea: "You wish we could stay. It's time to go now. Do you want to walk or hop to the car?",
     setup: "Okay, time to go home now.",
     lines: { feeling: "You wish we could stay.", limit: "It's time to go home now.", choice: "Do you want to walk or hop to the car?" },
     title: "Leaving the playground is a battle",
@@ -69,6 +104,10 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
   },
   bedtime_refusal: {
     id: "bedtime_refusal",
+    group: "routines",
+    minutes: 2,
+    situation: { main: "is building with blocks and refuses to go to bed.", transfer: "won't turn off a cartoon on the tablet before dinner." },
+    idea: "You really want to keep building. It's bedtime now. One book or two songs?",
     setup: "Time for bed, sweetie.",
     lines: { feeling: "You wish you could keep playing.", limit: "It's bedtime now.", choice: "Do you want one book or two songs?" },
     title: "Bedtime turns into a fight",
@@ -100,6 +139,10 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
   },
   hitting_sibling: {
     id: "hitting_sibling",
+    group: "safety",
+    minutes: 3,
+    situation: { main: "just hit their baby brother, who grabbed a toy truck. He's crying.", transfer: "pushed a friend at a playdate and grabbed their doll." },
+    idea: "I won't let you hit. Hitting hurts. You can stomp your feet or squeeze the pillow.",
     setup: "Hey! What just happened?",
     lines: { feeling: "You're angry he took your truck.", limit: "I won't let you hit.", choice: "You can stomp your feet or squeeze the pillow." },
     title: "Hitting a sibling",
@@ -131,8 +174,13 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     },
   },
   // The parent's own moment. The situation text comes from the parent at runtime (describeWith).
+  ...MORE_SCENARIOS,
   custom: {
     id: "custom",
+    group: "feelings",
+    minutes: 3,
+    situation: { main: "", transfer: "is on the slide and refuses to leave the playground." },
+    idea: "I know you're upset. It's time to stop now. Do you want to do it yourself or should I help?",
     setup: "Okay, it's time to stop now.",
     lines: { feeling: "I know you're upset.", limit: "It's time to stop now.", choice: "Do you want to do it yourself or should I help?" },
     title: "Your own moment",

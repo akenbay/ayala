@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildScorecard } from "../lib/rubric/score";
 import { codeCoach, codeRewrite, coach, type CoachInput } from "../lib/coach";
 import { decideState, signalsFromText } from "../lib/toddler";
-import type { ScenarioId } from "../lib/scenarios";
+import { SCENARIO_LIST, type ScenarioId } from "../lib/scenarios";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -42,7 +42,7 @@ describe("code coach", () => {
   });
 
   it("rewrites score higher for every scenario and its new situation", () => {
-    for (const id of ["leaving_playground", "bedtime_refusal", "hitting_sibling"] as ScenarioId[]) {
+    for (const id of SCENARIO_LIST.map((s) => s.id) as ScenarioId[]) {
       for (const transfer of [false, true]) {
         const t = "Stop it right now!";
         const r = codeRewrite(t, buildScorecard(t, id, null, true), id, transfer);

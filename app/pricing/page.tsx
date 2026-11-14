@@ -10,7 +10,7 @@ import { ManagePlus, RestorePlus } from "@/components/ManagePlus";
 const FEATURES: [string, string][] = [
   ["Every real moment, as often as it happens", "Unlimited Your own moment and Today I lost it. Practice what actually happened today, not a fixed lesson."],
   ["Your phrase bank, with no limit", "Every improved sentence you save. Your own words show first when you open Help me now."],
-  ["New moments as your child grows", "Hitting a sibling today, and every built-in moment we add next (getting dressed, car seat, screens)."],
+  ["All 15 stories with Sam", "Car seat, bath, teeth, screens, daycare drop-off, sharing, your work call, running off and more. Leaving the playground and bedtime stay free."],
   ["Prove the skill sticks", "New situations with no tips, your skill trends, and the full plan aimed at your weakest skill."],
 ];
 

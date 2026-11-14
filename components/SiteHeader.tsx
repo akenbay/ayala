@@ -2,39 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { Bars, Bolt } from "./icons";
 
-const PARTS = [
-  { id: "about", label: "About" },
-  { id: "learn", label: "Learn" },
-  { id: "stories", label: "Stories" },
+/** The main pages. About is the home page and comes first. */
+const PAGES = [
+  { href: "/", label: "About" },
+  { href: "/learn", label: "Learn" },
+  { href: "/stories", label: "Stories" },
+  { href: "/moment", label: "My moment", long: "Your own moment" },
 ] as const;
 
-type PartId = (typeof PARTS)[number]["id"];
-
-/** Sticky brand bar with the three parts of the home page. The practice flow has its own focused header. */
+/** Sticky brand bar with the main pages. The practice flow has its own focused header. */
 export function SiteHeader() {
-  const path = usePathname();
-  const onHome = path === "/";
-  const [active, setActive] = useState<PartId>("about");
-
-  // On the home page, highlight the part the parent is reading.
-  useEffect(() => {
-    if (!onHome) return;
-    const els = PARTS.map((p) => document.getElementById(p.id)).filter((e): e is HTMLElement => Boolean(e));
-    if (els.length === 0) return;
-    const onScroll = () => {
-      const line = 160;
-      let cur: PartId = "about";
-      for (const el of els) if (el.getBoundingClientRect().top <= line) cur = el.id as PartId;
-      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) cur = els[els.length - 1].id as PartId;
-      setActive(cur);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [onHome]);
+  const path = usePathname() ?? "/";
+  const current = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
   if (path?.startsWith("/practice")) return null;
 
@@ -47,9 +28,9 @@ export function SiteHeader() {
           Ayala
         </Link>
 
-        <nav aria-label="Home sections" className="hidden items-center gap-1 sm:flex">
-          {PARTS.map((p) => (
-            <PartLink key={p.id} id={p.id} label={p.label} current={onHome && active === p.id} />
+        <nav aria-label="Main pages" className="hidden items-center gap-1 md:flex">
+          {PAGES.map((p) => (
+            <PageLink key={p.href} href={p.href} label={"long" in p ? p.long : p.label} current={current(p.href)} />
           ))}
         </nav>
 
@@ -76,22 +57,22 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Phones: the three parts as a tab row under the logo */}
-      <nav aria-label="Home sections" className="mx-auto flex max-w-5xl gap-1 px-4 pb-2 sm:hidden">
-        {PARTS.map((p) => (
-          <PartLink key={p.id} id={p.id} label={p.label} current={onHome && active === p.id} wide />
+      {/* Phones and tablets: the main pages as a tab row under the logo */}
+      <nav aria-label="Main pages" className="mx-auto flex max-w-5xl gap-1 px-3 pb-2 md:hidden">
+        {PAGES.map((p) => (
+          <PageLink key={p.href} href={p.href} label={p.label} current={current(p.href)} wide />
         ))}
       </nav>
     </header>
   );
 }
 
-function PartLink({ id, label, current, wide }: { id: string; label: string; current: boolean; wide?: boolean }) {
+function PageLink({ href, label, current, wide }: { href: string; label: string; current: boolean; wide?: boolean }) {
   return (
     <Link
-      href={`/#${id}`}
-      aria-current={current ? "location" : undefined}
-      className={`flex h-10 items-center justify-center rounded-full px-4 text-[15px] font-semibold transition-colors ${wide ? "flex-1" : ""} ${
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className={`flex h-10 items-center justify-center whitespace-nowrap rounded-full px-3 text-[15px] font-semibold transition-colors ${wide ? "flex-1 px-1" : "px-4"} ${
         current ? "bg-ink text-cream" : "text-ink hover:bg-white"
       }`}
     >

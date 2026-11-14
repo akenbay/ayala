@@ -54,31 +54,25 @@ const LINK_ALIASES: Record<string, ScenarioId> = {
   hitting: "hitting_sibling",
   siblings: "hitting_sibling",
   hitting_sibling: "hitting_sibling",
+  tv: "screen_time",
+  screens: "screen_time",
+  dressed: "getting_dressed",
+  carseat: "car_seat",
+  bath: "bath_time",
+  teeth: "brushing_teeth",
+  dinner: "dinner_table",
+  store: "store_candy",
+  sharing: "sharing_toys",
+  cleanup: "cleanup_toys",
+  dropoff: "daycare_dropoff",
+  work: "work_call",
+  running: "running_off",
 };
 
 /** Labeled sample answers behind "Need an idea?". They run through the real scoring. */
-const IDEAS: Record<ScenarioId, { first: string; retry: string }> = {
-  leaving_playground: {
-    first: "You wish we could stay. It's time to go now. Do you want to walk or hop to the car?",
-    retry: SCENARIOS.leaving_playground.scripts[0],
-  },
-  bedtime_refusal: {
-    first: "You really want to keep building. It's bedtime now. One book or two songs?",
-    retry: SCENARIOS.bedtime_refusal.scripts[0],
-  },
-  hitting_sibling: {
-    first: "I won't let you hit. Hitting hurts. You can stomp your feet or squeeze the pillow.",
-    retry: SCENARIOS.hitting_sibling.scripts[0],
-  },
-  custom: { first: SCENARIOS.custom.scripts[0], retry: SCENARIOS.custom.scripts[1] },
-};
+const IDEAS = (id: ScenarioId) => ({ first: SCENARIOS[id].idea, retry: SCENARIOS[id].scripts[0] });
 
-const SITUATION: Record<ScenarioId, { main: string; transfer: string }> = {
-  leaving_playground: { main: "is on the slide and refuses to leave the playground.", transfer: "is playing with grandma's toys and won't put on shoes to go home." },
-  bedtime_refusal: { main: "is building with blocks and refuses to go to bed.", transfer: "won't turn off a cartoon on the tablet before dinner." },
-  hitting_sibling: { main: "just hit their baby brother, who grabbed a toy truck. He's crying.", transfer: "pushed a friend at a playdate and grabbed their doll." },
-  custom: { main: "", transfer: "is on the slide and refuses to leave the playground." },
-};
+const SITUATION = (id: ScenarioId) => SCENARIOS[id].situation;
 
 const STRENGTH: Record<Dimension, string> = {
   clear_direction: "clear",
@@ -277,7 +271,7 @@ export default function PracticePage() {
   const situationText =
     scenarioId === "custom" && !transfer
       ? (customOpen?.scene ?? own?.situation ?? "Your own moment")
-      : `Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`;
+      : `Your ${age} year old ${transfer ? SITUATION(scenarioId).transfer : SITUATION(scenarioId).main}`;
   const currentState = [...shown].reverse().find((m) => m.role === "child" && m.state)?.state;
   const lesson = kind === "first" ? lessonById(store?.lesson) : undefined;
   // "Need an idea?" starts from what Sam actually said, not a stock line.
@@ -287,7 +281,7 @@ export default function PracticePage() {
       ? customOpen.idea
       : openerText
         ? [reflectFeeling(openerText) ?? ideaLines.feeling, ideaLines.limit, ideaLines.choice].join(" ")
-        : IDEAS[scenarioId].first;
+        : IDEAS(scenarioId).first;
   const firstCoach = typeof coaches.first === "object" ? coaches.first : null;
 
   return (
@@ -333,7 +327,7 @@ export default function PracticePage() {
             setMsgs={setMsgs}
             waiting={openerPending}
             idea={
-              kind === "first" ? ideaFromSam : kind === "retry" ? (firstCoach?.rewrite?.text ?? IDEAS[scenarioId].retry) : null
+              kind === "first" ? ideaFromSam : kind === "retry" ? (firstCoach?.rewrite?.text ?? IDEAS(scenarioId).retry) : null
             }
             ideaLabel={kind === "retry" && firstCoach?.rewrite ? "Your words, improved" : "One idea (sample)"}
             onFinish={finishAttempt}
@@ -677,7 +671,7 @@ function Chat(props: {
               </p>
             )}
 
-        {scenarioId === "hitting_sibling" && !transfer && parentTurns === 0 && (
+        {SCENARIOS[scenarioId].safetyFirst && !transfer && parentTurns === 0 && (
           <p className="-mt-1.5 px-1 text-[13px] text-muted">If anyone is unsafe, focus on safety before practicing what to say.</p>
         )}
 
@@ -1094,7 +1088,7 @@ function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: C
         Try again in your own words <Arrow size={20} />
       </button>
 
-      <Collapsible label="More about this reply">
+      <Collapsible label="More about this reply" defaultOpen>
         {c && <CoachNotes coach={c} parts={["summary", "heard"]} />}
         {attempt.turns.length > 1 && (
           <div className="flex justify-center gap-2" role="group" aria-label="Pick a reply">
@@ -1309,7 +1303,7 @@ function Compare({
         Try a new situation <Arrow size={20} />
       </button>
 
-      <Collapsible label="More about this reply">
+      <Collapsible label="More about this reply" defaultOpen>
         {typeof coach === "object" ? <CoachNotes coach={coach} showChange={b.total < 85} /> : coach === "loading" ? <CoachLoading /> : null}
         <div className="rounded-2xl bg-white p-[18px]">
           <DimensionBars card={tb.card} compare={ta.card} />
@@ -1361,7 +1355,7 @@ function Done({ first, retry, transfer, coach }: { first?: Attempt; retry?: Atte
           See my phrases and plan
         </Link>
       </section>
-      <Link href="/" className="btn-ghost">
+      <Link href="/stories" className="btn-ghost">
         Practice another moment
       </Link>
 

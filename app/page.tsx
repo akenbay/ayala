@@ -3,24 +3,19 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { SCENARIOS, SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
-import { LESSONS, lessonForSkill, lessonSource, type Lesson } from "@/lib/lessons";
-import { focusLabel, ownMomentLocked, resetStore, update, useStore, weakestDimension, type Age } from "@/lib/storage";
+import { SCENARIOS, SCENARIO_LIST } from "@/lib/scenarios";
+import { LESSONS, lessonForSkill } from "@/lib/lessons";
+import { focusLabel, resetStore, useStore, weakestDimension } from "@/lib/storage";
 import { TEST_CARD } from "@/lib/pricing";
-import { Arrow, Bolt, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
+import { Arrow, Bolt, Check, ScenarioIcon } from "@/components/icons";
 import { HomeCheck } from "@/components/PhraseBank";
-import { Sam } from "@/components/Sam";
-
-const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3, custom: 3 };
+import { useStartPractice } from "@/components/useStartPractice";
 
 export default function Home() {
   const router = useRouter();
   const store = useStore();
-  const [editing, setEditing] = useState(false);
-  const [openLesson, setOpenLesson] = useState<string | null>(null);
+  const start = useStartPractice();
   const [confirmReset, setConfirmReset] = useState(false);
-  const age: Age = store?.childAge ?? 3;
-  const context = store?.context ?? "";
   const unlocked = store?.unlocked ?? false;
   const nextPlan = store?.plan.find((p) => !p.done);
   const doneDays = store?.plan.filter((p) => p.done).length ?? 0;
@@ -78,30 +73,7 @@ export default function Home() {
   const current = steps.findIndex((x) => !x.done);
 
   function openLessonCard(id: string) {
-    setOpenLesson(id);
-    markRead(id);
-    requestAnimationFrame(() => document.getElementById(`lesson-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }
-
-  function markRead(id: string) {
-    update((s) => {
-      s.lessonsRead = Array.from(new Set([...(s.lessonsRead ?? []), id]));
-    });
-  }
-
-  function start(id: ScenarioId, planDay: number | null = null, lesson: string | null = null) {
-    const sc = SCENARIOS[id];
-    const locked = (!sc.free || (planDay !== null && planDay > 1)) && !unlocked;
-    if (locked) {
-      router.push("/pricing?from=" + id);
-      return;
-    }
-    update((s) => {
-      s.current = id;
-      s.currentPlanDay = planDay;
-      s.lesson = lesson;
-    });
-    router.push("/practice");
+    router.push(`/learn?open=${id}`);
   }
 
   return (
@@ -231,125 +203,32 @@ export default function Home() {
         </section>
       )}
 
-      {/* PART 2. Learn: materials from CDC guidance */}
-      <section id="learn" aria-labelledby="learn-h" className="mt-12 scroll-mt-36">
-        <p className="text-[13px] font-bold uppercase tracking-wide text-amber-text">Part 2</p>
-        <h2 id="learn-h" className="font-display text-[28px] leading-tight">
-          Learn
+      {/* Where to go next: the other parts of Ayala, each on its own page */}
+      <section aria-labelledby="parts-h" className="mt-10">
+        <h2 id="parts-h" className="font-display text-[24px]">
+          Explore Ayala
         </h2>
-        <p className="mt-1 text-[15px] text-muted">
-          Ideas from the CDC&apos;s Essentials for Parenting. Each takes about 2 minutes and ends with a story to practice it.
-        </p>
-        <ul className="mt-3 flex flex-col gap-3">
-          {LESSONS.map((l, i) => (
-            <LessonCard
-              key={l.id}
-              lesson={l}
-              index={i}
-              open={openLesson === l.id}
-              locked={!SCENARIOS[l.practice].free && !unlocked}
-              onToggle={() => {
-                if (openLesson !== l.id) markRead(l.id);
-                setOpenLesson((v) => (v === l.id ? null : l.id));
-              }}
-              onPractice={() => start(l.practice, null, l.id)}
-            />
-          ))}
-        </ul>
-      </section>
-
-      {/* PART 3. Stories: practice with Sam */}
-      <section id="stories" aria-labelledby="practice-h" className="mt-12 scroll-mt-36">
-        <p className="text-[13px] font-bold uppercase tracking-wide text-amber-text">Part 3</p>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 id="practice-h" className="font-display text-[28px] leading-tight">
-            Stories with Sam
-          </h2>
-          <span className="shrink-0 text-[13px] text-muted">
-            Age {age},{" "}
-            <button type="button" onClick={() => setEditing((v) => !v)} aria-expanded={editing} className="font-semibold text-ink underline underline-offset-2">
-              {editing ? "done" : "change"}
-            </button>
-          </span>
-        </div>
-
-        <p className="mt-1 text-[15px] text-muted">
-          Pick a hard moment. Sam, a pretend toddler, reacts to what you say, and you get feedback on your own words.
-        </p>
-
-        {editing && (
-          <div className="anim-fade-down mt-3 space-y-4 rounded-2xl bg-white p-4">
-            <div className="flex gap-2" role="group" aria-label="Child's age">
-              {([2, 3, 4] as Age[]).map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  className="chip"
-                  aria-pressed={age === a}
-                  onClick={() =>
-                    update((s) => {
-                      s.childAge = a;
-                    })
-                  }
-                >
-                  {a} years
-                </button>
-              ))}
-            </div>
-            <div>
-              <label htmlFor="ctx" className="text-[15px] font-semibold">
-                Anything Sam should know? <span className="font-normal text-muted">(optional)</span>
-              </label>
-              <input
-                id="ctx"
-                value={context}
-                maxLength={120}
-                onChange={(e) =>
-                  update((s) => {
-                    s.context = e.target.value.slice(0, 120);
-                  })
-                }
-                placeholder="He's usually tired after daycare"
-                className="mt-2 h-12 w-full rounded-xl border-[1.5px] border-field bg-cream px-3.5 text-base outline-none focus:border-ink"
-              />
-              <p className="mt-1.5 text-[13px] text-muted">Please don&apos;t enter your child&apos;s real name.</p>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {SCENARIO_LIST.map((s) => {
-            const plus = !s.free && !unlocked;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => start(s.id)}
-                className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl bg-white p-4 text-left transition duration-150 hover:shadow-[0_0_0_2px_#30251F] active:scale-[0.98]"
-              >
-                <span className="flex w-full items-start justify-between">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach">
-                    <ScenarioIcon id={s.id} size={24} />
-                  </span>
-                  {plus && <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-cream">Plus</span>}
-                </span>
-                <span className="mt-auto text-[17px] font-bold leading-tight">{s.short}</span>
-                <span className="text-[13px] text-muted">About {MINUTES[s.id]} min</span>
-              </button>
-            );
-          })}
-          <Link
-            href={store && ownMomentLocked(store) ? "/pricing?from=moment" : "/moment"}
-            className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl border-[1.5px] border-dashed border-field bg-paper p-4 transition duration-150 hover:border-ink active:scale-[0.98]"
-          >
-            <span className="flex w-full items-start justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach">
-                <ScenarioIcon id="custom" size={24} />
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <Link href="/moment" className="flex flex-col gap-1.5 rounded-3xl bg-peach p-5 shadow-soft transition active:scale-[0.99] sm:col-span-3">
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
+                <ScenarioIcon id="custom" size={22} />
               </span>
-              {store && ownMomentLocked(store) && <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-cream">Plus</span>}
+              <span className="text-[19px] font-extrabold">Your own moment</span>
             </span>
-            <span className="mt-auto text-[17px] font-bold leading-tight">Your own moment</span>
-            <span className="text-[13px] text-muted">{store && ownMomentLocked(store) ? "Your first one was free" : "Or what you said today. First one free"}</span>
+            <span className="text-[15px] text-soft-ink">Describe what really happens at home, or what you said today, and practice it with Sam.</span>
+          </Link>
+          <Link href="/stories" className="flex flex-col gap-1 rounded-2xl bg-white p-4 transition active:scale-[0.99]">
+            <span className="text-[17px] font-bold">Stories with Sam</span>
+            <span className="text-[14px] text-muted">{SCENARIO_LIST.length} everyday moments, from bedtime to the car seat.</span>
+          </Link>
+          <Link href="/learn" className="flex flex-col gap-1 rounded-2xl bg-white p-4 transition active:scale-[0.99]">
+            <span className="text-[17px] font-bold">Learn</span>
+            <span className="text-[14px] text-muted">{LESSONS.length} short lessons from CDC guidance.</span>
+          </Link>
+          <Link href="/help" className="flex flex-col gap-1 rounded-2xl bg-white p-4 transition active:scale-[0.99]">
+            <span className="text-[17px] font-bold">Help me now</span>
+            <span className="text-[14px] text-muted">Three lines to say during a meltdown.</span>
           </Link>
         </div>
       </section>
@@ -375,7 +254,6 @@ export default function Home() {
                   onClick={() => {
                     resetStore();
                     setConfirmReset(false);
-                    setOpenLesson(null);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                 >
@@ -405,81 +283,5 @@ export default function Home() {
         </ol>
       </details>
     </div>
-  );
-}
-
-/** A lesson that opens in place: three ideas, phrases to try, one thing to avoid, the CDC page, then practice. */
-function LessonCard({
-  lesson: l,
-  index,
-  open,
-  locked,
-  onToggle,
-  onPractice,
-}: {
-  lesson: Lesson;
-  index: number;
-  open: boolean;
-  locked: boolean;
-  onToggle: () => void;
-  onPractice: () => void;
-}) {
-  const src = lessonSource(l);
-  return (
-    <li
-      id={`lesson-${l.id}`}
-      className={`anim-rise scroll-mt-20 overflow-hidden rounded-3xl transition-colors duration-200 ${open ? "shadow-soft bg-peach" : "bg-white"}`}
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3.5 p-4 text-left">
-        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[17px] font-extrabold ${open ? "bg-white" : "bg-peach"}`}>
-          {index + 1}
-        </span>
-        <span className="flex flex-1 flex-col gap-0.5">
-          <span className="text-[17px] font-bold leading-snug">{l.title}</span>
-          <span className="text-[14px] text-muted">{l.hook}</span>
-        </span>
-        <ChevronDown size={20} className={`shrink-0 transition duration-200 ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && (
-        <div className="anim-fade-down flex flex-col gap-4 px-4 pb-4">
-          <ol className="flex flex-col gap-2.5">
-            {l.points.map((p, i) => (
-              <li key={i} className="anim-rise flex gap-3 text-[16px] leading-snug" style={{ animationDelay: `${60 + i * 70}ms` }}>
-                <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange" />
-                {p}
-              </li>
-            ))}
-          </ol>
-
-          <div className="rounded-2xl bg-white p-4">
-            <span className="label-caps">Try saying</span>
-            <ul className="mt-2 flex flex-col gap-2">
-              {l.say.map((s) => (
-                <li key={s} className="flex items-start gap-2.5">
-                  <span className="shrink-0">
-                    <Sam face="happy" size={26} />
-                  </span>
-                  <span className="text-[16px] italic leading-snug">&ldquo;{s}&rdquo;</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 border-t border-line pt-2.5 text-[14px] text-soft-ink">
-              <b className="text-bad">Skip:</b> {l.avoid}
-            </p>
-          </div>
-
-          <a href={src.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 self-start text-[14px] font-semibold underline underline-offset-[3px]">
-            <Info size={15} /> Read more: {src.name}
-          </a>
-
-          <button type="button" onClick={onPractice} className="btn-primary h-14 text-lg">
-            {locked ? "Unlock to practice" : `Practice it: ${SCENARIOS[l.practice].short.toLowerCase()}`} <Arrow size={20} />
-          </button>
-          <p className="-mt-2 text-center text-[13px] text-muted">About {l.minutes} minutes with Sam</p>
-        </div>
-      )}
-    </li>
   );
 }

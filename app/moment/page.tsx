@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MAX_SITUATION } from "@/lib/scenarios";
@@ -8,7 +7,7 @@ import { MAX_CHARS } from "@/lib/rubric/validate";
 import { detectCrisis, type Crisis } from "@/lib/safety";
 import { FREE_OWN_MOMENTS, ownMomentLocked, update, useStore } from "@/lib/storage";
 import { CrisisCard } from "@/components/CrisisCard";
-import { Arrow, Back } from "@/components/icons";
+import { Arrow } from "@/components/icons";
 
 const EXAMPLES = [
   "My 3 year old screams and drops to the floor when I turn off the TV before bath.",
@@ -71,11 +70,9 @@ export default function MomentPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5 py-4">
-      <div className="flex items-center gap-3">
-        <Link href="/" aria-label="Back to home" className="flex h-11 w-11 items-center justify-center rounded-full bg-white">
-          <Back size={20} />
-        </Link>
-        <h1 className="font-display text-[30px]">Your own moment</h1>
+      <div>
+        <h1 className="font-display text-[34px] leading-tight">Your own moment</h1>
+        <p className="mt-1 text-[16px] text-muted">The hard moment that really happens at your home. Sam plays it, and you practice what to say.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 rounded-full bg-white p-1" role="tablist" aria-label="What do you want to practice?">

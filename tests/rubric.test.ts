@@ -246,7 +246,8 @@ describe("Sam is not more obedient on the retry", () => {
 describe("new situation sounds new", () => {
   it("uses its own prewritten replies, not the first moment's", async () => {
     const { fallbackReply } = await import("@/lib/toddler");
-    for (const id of ["leaving_playground", "bedtime_refusal", "hitting_sibling"] as const) {
+    const { SCENARIO_LIST } = await import("@/lib/scenarios");
+    for (const id of SCENARIO_LIST.map((s) => s.id)) {
       for (let turn = 0; turn < 3; turn++) {
         expect(fallbackReply(id, "resisting", turn, true)).not.toBe(fallbackReply(id, "resisting", turn, false));
       }

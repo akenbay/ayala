@@ -19,7 +19,15 @@ export type Lesson = {
   cdc: CdcKey;
   practice: ScenarioId;
   skill: Dimension;
+  group: LessonGroup;
 };
+
+export type LessonGroup = "basics" | "words" | "hard";
+export const LESSON_GROUPS: { id: LessonGroup; title: string; hint: string }[] = [
+  { id: "basics", title: "The basics", hint: "Four ideas that help in almost every hard moment" },
+  { id: "words", title: "Words that work", hint: "Small changes in how you say it" },
+  { id: "hard", title: "When it gets hard", hint: "Pushback, warnings and goodbyes" },
+];
 
 export const LESSONS: Lesson[] = [
   {
@@ -38,6 +46,7 @@ export const LESSONS: Lesson[] = [
     cdc: "timeIn",
     practice: "leaving_playground",
     skill: "emotional_response",
+    group: "basics",
   },
   {
     id: "directions",
@@ -55,6 +64,7 @@ export const LESSONS: Lesson[] = [
     cdc: "goodDirections",
     practice: "bedtime_refusal",
     skill: "clear_direction",
+    group: "basics",
   },
   {
     id: "limits",
@@ -72,6 +82,7 @@ export const LESSONS: Lesson[] = [
     cdc: "consequences",
     practice: "bedtime_refusal",
     skill: "boundaries",
+    group: "basics",
   },
   {
     id: "safety",
@@ -89,6 +100,133 @@ export const LESSONS: Lesson[] = [
     cdc: "responding",
     practice: "hitting_sibling",
     skill: "boundaries",
+    group: "basics",
+  },
+  {
+    id: "choices",
+    focus: "Offer two choices you're happy with, so Sam gets some control.",
+    title: "Offer two good choices",
+    hook: "A little control means a lot less fighting.",
+    minutes: 2,
+    points: [
+      "Toddlers push back hard when they feel they have no say. A small choice gives them one.",
+      "Offer two options, both fine with you. Two is easier for a young child than many.",
+      "The choice is about how, not whether: the shirt goes on either way.",
+    ],
+    say: ["Do you want the red shirt or the blue shirt?", "You can walk to the car or hop like a bunny."],
+    avoid: "Choices you won't accept (\"Do you want to get dressed?\") or too many options.",
+    cdc: "goodDirections",
+    practice: "getting_dressed",
+    skill: "positive_guidance",
+    group: "words",
+  },
+  {
+    id: "one_step",
+    focus: "Give one short direction at a time, then wait for it before the next.",
+    title: "One step at a time",
+    hook: "A toddler can hold one instruction, not five.",
+    minutes: 2,
+    points: [
+      "Young children can't remember a string of directions. Give one, then the next.",
+      "Make each step small and concrete: \"Red blocks in the bin.\"",
+      "Notice when the step is done before you give another.",
+    ],
+    say: ["Red blocks in the bin now.", "Now the blue ones. You can race me."],
+    avoid: "\"Pick up your toys, wash your hands and come to dinner!\" all at once.",
+    cdc: "goodDirections",
+    practice: "cleanup_toys",
+    skill: "clear_direction",
+    group: "words",
+  },
+  {
+    id: "say_do",
+    focus: "Say what Sam can do, not only what to stop.",
+    title: "Say what to do, not just \"stop\"",
+    hook: "\"Stop throwing\" leaves a gap. Fill it.",
+    minutes: 2,
+    points: [
+      "\"Stop\" and \"don't\" tell a child what not to do, but not what to do instead.",
+      "Name the behavior you want: \"Food stays on the plate.\"",
+      "Give an okay way to show the feeling: \"You can say 'no thank you'.\"",
+    ],
+    say: ["Food stays on the plate.", "You can say 'no thank you' or push the bowl away gently."],
+    avoid: "Only \"Stop it!\" or \"Don't do that!\" with nothing after.",
+    cdc: "directions",
+    practice: "dinner_table",
+    skill: "clear_direction",
+    group: "words",
+  },
+  {
+    id: "praise",
+    focus: "When Sam does part of it, name exactly what was good.",
+    title: "Praise the exact thing",
+    hook: "\"Good job\" is nice. \"You opened wide!\" teaches.",
+    minutes: 2,
+    points: [
+      "Attention is powerful. Give lots of it to the behavior you want to see again.",
+      "Be specific: say exactly what your child did well.",
+      "Praise right away, even small steps toward the goal.",
+    ],
+    say: ["You opened your mouth so wide. Thank you!", "You held the toothbrush all by yourself."],
+    avoid: "Only noticing your child when things go wrong.",
+    cdc: "responding",
+    practice: "brushing_teeth",
+    skill: "positive_guidance",
+    group: "words",
+  },
+  {
+    id: "warnings",
+    focus: "If you give a warning, keep it calm, small and something you will really do.",
+    title: "Warnings you'll really follow",
+    hook: "A small warning you keep beats a big one you don't.",
+    minutes: 2,
+    points: [
+      "A calm warning tells your child what will happen next, so it isn't a surprise.",
+      "Pick a consequence that is small, fair and comes right away.",
+      "Then follow through, calmly, every time. That is what makes the next warning work.",
+    ],
+    say: ["When the show ends, the TV goes off.", "If you throw the remote, it goes up on the shelf."],
+    avoid: "\"No TV ever again!\" or warnings you won't carry out.",
+    cdc: "consequences",
+    practice: "screen_time",
+    skill: "boundaries",
+    group: "hard",
+  },
+  {
+    id: "calm",
+    focus: "Keep your voice low and your words few, even when Sam gets loud.",
+    title: "Stay calm when they push",
+    hook: "Yelling is attention too, and it can feed the fight.",
+    minutes: 2,
+    points: [
+      "Any attention, even yelling, can make a behavior happen more.",
+      "Lower your voice and use fewer words when your child gets louder.",
+      "Breathe first. It is okay to pause before you answer.",
+    ],
+    say: ["I know you're upset about the candy.", "It's time to put it back. You can hold my hand."],
+    avoid: "Shouting back, long lectures, or giving in to stop the noise.",
+    cdc: "responding",
+    practice: "store_candy",
+    skill: "calm_respectful",
+    group: "hard",
+  },
+  {
+    id: "goodbyes",
+    focus: "Name the feeling, say when you'll be back, and keep the goodbye short.",
+    title: "Hard goodbyes",
+    hook: "Name the sad feeling, then leave with a clear plan.",
+    minutes: 2,
+    points: [
+      "Say what your child feels: \"You're sad when I leave.\"",
+      "Tell them when you'll be back in words they know: \"after snack\".",
+      "Keep the goodbye short and warm. A long goodbye can make it harder.",
+    ],
+    say: ["You're sad when I leave.", "I'll pick you up after snack. Hug or high five?"],
+    avoid: "Sneaking out, or staying longer each time your child cries.",
+    cdc: "timeIn",
+    practice: "daycare_dropoff",
+    skill: "emotional_response",
+    group: "hard",
   },
 ];
 

@@ -125,7 +125,30 @@ export const Mic = (p: P) => (
   </Svg>
 );
 
+/** Simple line drawings for the newer stories, keyed by story id. */
+const STORY_PATHS: Partial<Record<ScenarioId, React.ReactNode>> = {
+  screen_time: (<><rect x="3" y="5" width="18" height="12" rx="2" /><path d="M8 21h8M12 17v4" /></>),
+  getting_dressed: (<path d="M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3c0 2-2 3-4 3S8 5 8 3Z" />),
+  car_seat: (<><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5Z" /><circle cx="8" cy="17.5" r="1.8" /><circle cx="16" cy="17.5" r="1.8" /></>),
+  bath_time: (<><path d="M3 12h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5Z" /><path d="M6 12V6a2 2 0 0 1 4 0" /><path d="M7 19l-1 2M17 19l1 2" /></>),
+  brushing_teeth: (<path d="M7 3c-2 0-3 2-3 4 0 3 1 5 2 8 .5 2 1 6 2.5 6S10 17 12 17s2 4 3.5 4S17 17 18 15c1-3 2-5 2-8 0-2-1-4-3-4-2 0-3 1-5 1S9 3 7 3Z" />),
+  dinner_table: (<><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="3.5" /><path d="M2 5v6M22 5v14" /></>),
+  store_candy: (<><path d="M3 4h2l2.5 11h10L20 7H6.2" /><circle cx="9" cy="19" r="1.5" /><circle cx="17" cy="19" r="1.5" /></>),
+  sharing_toys: (<><rect x="3" y="11" width="7" height="7" rx="1" /><rect x="14" y="11" width="7" height="7" rx="1" /><path d="M8 7h8M13 4l3 3-3 3" /></>),
+  cleanup_toys: (<><path d="M4 9h16l-1.5 11h-13Z" /><path d="M9 9V6h6v3" /></>),
+  daycare_dropoff: (<><path d="M3 11 12 4l9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-5h4v5" /></>),
+  work_call: (<><rect x="4" y="5" width="16" height="11" rx="1.5" /><path d="M2 19h20" /><circle cx="12" cy="10" r="2" /></>),
+  running_off: (<><circle cx="14" cy="4.5" r="2" /><path d="m7 21 3-6 3 2v4M10 15l1-6 4 3 3 1M11 9 7 10l-1 3" /></>),
+};
+
 export function ScenarioIcon({ id, size = 30 }: { id: ScenarioId; size?: number }) {
+  const story = STORY_PATHS[id];
+  if (story)
+    return (
+      <Svg size={size} width={1.8}>
+        {story}
+      </Svg>
+    );
   if (id === "custom")
     return (
       <Svg size={size} width={1.8}>

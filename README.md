@@ -169,7 +169,7 @@ Keys live only in server environment variables. Nothing secret is committed.
 
 ## Limits
 
-- Three scenarios, each with one transfer situation. English only for now.
+- 15 stories (2 free, 13 with Plus), each with one new situation for the same skill, plus the parent's own moment. English only for now.
 - A practice tool, not medical or psychological advice. The practice toddler is fictional; real children respond differently. The score measures the parent's practice wording, not a child's future behavior.
 - No personal data is collected. Please don't enter a child's real name.
 
