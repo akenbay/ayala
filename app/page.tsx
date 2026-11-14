@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SCENARIOS, SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
-import { LESSONS, lessonSource, type Lesson } from "@/lib/lessons";
-import { focusLabel, update, useStore, type Age } from "@/lib/storage";
+import { LESSONS, lessonForSkill, lessonSource, type Lesson } from "@/lib/lessons";
+import { focusLabel, resetStore, update, useStore, weakestDimension, type Age } from "@/lib/storage";
 import { TEST_CARD } from "@/lib/pricing";
-import { Arrow, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
+import { Arrow, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 import { Sam } from "@/components/Sam";
 
 const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3, custom: 3 };
@@ -17,12 +17,75 @@ export default function Home() {
   const store = useStore();
   const [editing, setEditing] = useState(false);
   const [openLesson, setOpenLesson] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const age: Age = store?.childAge ?? 3;
   const context = store?.context ?? "";
   const unlocked = store?.unlocked ?? false;
   const nextPlan = store?.plan.find((p) => !p.done);
   const doneDays = store?.plan.filter((p) => p.done).length ?? 0;
   const hasProfile = Boolean(store?.profile);
+
+  // Your path: one clear next step, computed from what the parent has already done on this device.
+  const real = (store?.attempts ?? []).filter((a) => !a.demo);
+  const focusLesson = lessonForSkill(weakestDimension(real) ?? store?.profile?.focus);
+  const read = store?.lessonsRead ?? [];
+  const plusLesson = !SCENARIOS[focusLesson.practice].free && !unlocked;
+  const steps: { key: string; title: string; detail: string; done: boolean; go: () => void; cta: string }[] = [
+    { key: "quiz", title: "Tell us about your child", detail: "7 taps, about 60 seconds. Sam will act like your child.", done: hasProfile, go: () => router.push("/start"), cta: "Get my plan in 60 seconds" },
+    {
+      key: "learn",
+      title: `Learn: ${focusLesson.title.toLowerCase()}`,
+      detail: "A 2 minute idea from CDC guidance.",
+      done: read.includes(focusLesson.id),
+      go: () => openLessonCard(focusLesson.id),
+      cta: "Open the lesson",
+    },
+    {
+      key: "practice",
+      title: "Practice it with Sam",
+      detail: `${SCENARIOS[focusLesson.practice].short}. About 2 minutes.`,
+      done: real.some((a) => a.kind === "first"),
+      go: () => start(focusLesson.practice, null, focusLesson.id),
+      cta: plusLesson ? "Unlock to practice" : "Start practicing",
+    },
+    {
+      key: "improve",
+      title: "Improve your words",
+      detail: "Get one tip, retry, and see your gain.",
+      done: real.some((a) => a.kind === "retry"),
+      go: () => start(focusLesson.practice, null, focusLesson.id),
+      cta: "Practice and retry",
+    },
+    {
+      key: "transfer",
+      title: "Try it alone in a new moment",
+      detail: "No tips. Shows the skill sticks.",
+      done: real.some((a) => a.kind === "transfer"),
+      go: () => start(focusLesson.practice, null, focusLesson.id),
+      cta: "Practice the full round",
+    },
+    {
+      key: "habit",
+      title: "Keep going: 2 minutes a day",
+      detail: "Your 7 day plan and a reminder before the hard hour.",
+      done: (store?.plan.filter((p) => p.done).length ?? 0) >= 2,
+      go: () => router.push("/progress"),
+      cta: "Open my plan",
+    },
+  ];
+  const current = steps.findIndex((x) => !x.done);
+
+  function openLessonCard(id: string) {
+    setOpenLesson(id);
+    markRead(id);
+    requestAnimationFrame(() => document.getElementById(`lesson-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function markRead(id: string) {
+    update((s) => {
+      s.lessonsRead = Array.from(new Set([...(s.lessonsRead ?? []), id]));
+    });
+  }
 
   function start(id: ScenarioId, planDay: number | null = null, lesson: string | null = null) {
     const sc = SCENARIOS[id];
@@ -62,11 +125,7 @@ export default function Home() {
         </p>
 
         <div className="anim-rise mx-auto mt-5 max-w-md" style={{ animationDelay: "120ms" }}>
-          {!hasProfile ? (
-            <Link href="/start" className="btn-primary h-14 w-full text-lg">
-              Get my plan in 60 seconds <Arrow size={20} />
-            </Link>
-          ) : nextPlan ? (
+          {store && current < 0 && nextPlan && (
             <button
               type="button"
               onClick={() => start(nextPlan.scenarioId, nextPlan.day)}
@@ -83,15 +142,59 @@ export default function Home() {
               </span>
               <Arrow size={20} />
             </button>
-          ) : null}
+          )}
         </div>
       </section>
+
+      {/* Your path: what to do first, then next */}
+      {store && (
+        <section aria-labelledby="path-h" className="mt-9">
+          <div className="flex items-baseline justify-between">
+            <h2 id="path-h" className="font-display text-[24px]">
+              Your path
+            </h2>
+            <span className="text-[13px] text-muted">
+              {steps.filter((x) => x.done).length} of {steps.length} done
+            </span>
+          </div>
+          <ol className="relative mt-4">
+            {steps.map((st, i) => {
+              const isNow = i === current;
+              return (
+                <li key={st.key} className="anim-rise relative flex gap-4 pb-5 last:pb-0" style={{ animationDelay: `${i * 50}ms` }}>
+                  {i < steps.length - 1 && (
+                    <span aria-hidden className={`absolute left-[19px] top-10 h-[calc(100%-36px)] w-0.5 rounded ${st.done ? "bg-good-line" : "bg-line"}`} />
+                  )}
+                  <span
+                    className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-extrabold ${
+                      st.done ? "bg-good-soft text-good" : isNow ? "bg-orange text-ink shadow-[0_0_0_6px_#FFF0D8]" : "bg-white text-muted"
+                    }`}
+                  >
+                    {st.done ? <Check size={16} /> : i + 1}
+                  </span>
+                  <div className={`flex-1 ${isNow ? "rounded-2xl bg-white p-4 shadow-soft" : "pt-2"}`}>
+                    <p className={`text-[16px] leading-snug ${isNow ? "font-bold" : st.done ? "font-semibold text-muted line-through decoration-1" : "font-semibold"}`}>
+                      {st.title}
+                    </p>
+                    {(isNow || !st.done) && <p className="mt-0.5 text-[14px] text-muted">{st.detail}</p>}
+                    {isNow && (
+                      <button type="button" onClick={st.go} className="btn-primary mt-3 h-12 w-full">
+                        {st.cta} <Arrow size={18} />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
 
       {/* 2. Learn, then practice */}
       <section aria-labelledby="learn-h" className="mt-9">
         <div className="flex items-baseline justify-between">
           <h2 id="learn-h" className="font-display text-[24px]">
-            Learn, then practice
+            All lessons
           </h2>
           <span className="text-[13px] text-muted">From CDC guidance</span>
         </div>
@@ -103,7 +206,10 @@ export default function Home() {
               index={i}
               open={openLesson === l.id}
               locked={!SCENARIOS[l.practice].free && !unlocked}
-              onToggle={() => setOpenLesson((v) => (v === l.id ? null : l.id))}
+              onToggle={() => {
+                if (openLesson !== l.id) markRead(l.id);
+                setOpenLesson((v) => (v === l.id ? null : l.id));
+              }}
               onPractice={() => start(l.practice, null, l.id)}
             />
           ))}
@@ -198,7 +304,43 @@ export default function Home() {
         </div>
       </section>
 
-      <details className="group mx-auto mt-10 max-w-xl text-center">
+      {store && (store.profile || store.attempts.length > 0 || store.unlocked) && (
+        <section aria-label="Start over" className="mx-auto mt-10 max-w-xl text-center">
+          {!confirmReset ? (
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              className="min-h-11 px-2 text-[15px] font-semibold text-muted underline underline-offset-[3px]"
+            >
+              Start over
+            </button>
+          ) : (
+            <div role="alertdialog" aria-label="Start over?" className="anim-fade-down flex flex-col items-center gap-3 rounded-2xl bg-white p-5">
+              <p className="text-[16px] font-semibold">Erase your quiz answers, practice history and plan on this device?</p>
+              <p className="-mt-1 text-[13px] text-muted">You&apos;ll start fresh with the 60 second quiz. This can&apos;t be undone.</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    resetStore();
+                    setConfirmReset(false);
+                    setOpenLesson(null);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Erase and start over
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => setConfirmReset(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <details className="group mx-auto mt-6 max-w-xl text-center">
         <summary className="inline-flex cursor-pointer list-none px-2 py-2.5 text-[15px] font-semibold underline underline-offset-[3px]">
           Judges: 3 minute tour
         </summary>
@@ -233,7 +375,11 @@ function LessonCard({
 }) {
   const src = lessonSource(l);
   return (
-    <li className={`anim-rise overflow-hidden rounded-3xl transition-colors duration-200 ${open ? "shadow-soft bg-peach" : "bg-white"}`} style={{ animationDelay: `${index * 50}ms` }}>
+    <li
+      id={`lesson-${l.id}`}
+      className={`anim-rise scroll-mt-20 overflow-hidden rounded-3xl transition-colors duration-200 ${open ? "shadow-soft bg-peach" : "bg-white"}`}
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3.5 p-4 text-left">
         <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[17px] font-extrabold ${open ? "bg-white" : "bg-peach"}`}>
           {index + 1}

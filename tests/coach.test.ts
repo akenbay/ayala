@@ -99,3 +99,25 @@ describe("AI coach", () => {
     expect(c.summary.length).toBeGreaterThan(10);
   });
 });
+
+describe("personal suggestions", () => {
+  it("names the feeling from what Sam actually said", async () => {
+    const { reflectFeeling } = await import("../lib/coach");
+    expect(reflectFeeling("I'm not tired! I want to play more!")).toBe("You really want to play more.");
+    expect(reflectFeeling("He took my truck! I hit him because it's MINE!")).toBe("You're angry he took your truck.");
+    expect(reflectFeeling("I want my truck!")).toBe("You really want your truck.");
+    expect(reflectFeeling("Yay! More!")).toBeNull();
+  });
+  it("the code rewrite uses Sam's words, not a stock line", () => {
+    const t = "Stop it right now!";
+    const c = codeCoach({
+      scenarioId: "bedtime_refusal",
+      transfer: false,
+      age: 3,
+      turns: [{ parent: t, child: "No!", state: "resisting", card: buildScorecard(t, "bedtime_refusal", null, true) }],
+      opener: "I'm not tired! I want to play more!",
+    });
+    expect(c.rewrite?.text).toContain("You really want to play more.");
+    expect(c.rewrite?.text).not.toContain("You wish");
+  });
+});

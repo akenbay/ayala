@@ -67,7 +67,7 @@ export const WARNING = /\b(if you|when you|if he|unless you)\b[^.!?]*/i;
 
 /** Phrases that acknowledge the child's feeling or wish (definite pass). */
 export const FEELING_PHRASES =
-  /\b(you wish|i know you (want|wish|love|really|don'?t|are|'re|feel|were)|i know it'?s hard|you('re| are) (so |really |feeling )?(sad|mad|angry|upset|frustrated|disappointed|tired|scared|cross|grumpy|having (so much |a lot of )?fun)|you (really )?love|you (really )?(wanted|didn'?t want|don'?t want to)|it'?s hard to|that'?s hard|that'?s (so )?(frustrating|disappointing)|you feel|you seem|you were having|so much fun|it'?s okay to (be|feel) (sad|mad|angry|upset)|you were (mad|angry|upset|frustrated))\b/i;
+  /\b(you wish|i know you (want|wish|love|really|don'?t|are|'re|feel|were)|i know it'?s hard|you('re| are) (so |really |feeling )?(sad|mad|angry|upset|frustrated|disappointed|tired|scared|cross|grumpy|having (so much |a lot of )?fun)|you (really )?love|you really want|you (really )?(wanted|didn'?t want|don'?t want to)|it'?s hard to|that'?s hard|that'?s (so )?(frustrating|disappointing)|you feel|you seem|you were having|so much fun|it'?s okay to (be|feel) (sad|mad|angry|upset)|you were (mad|angry|upset|frustrated))\b/i;
 
 /** Statements of the limit or what happens now. */
 export const LIMIT_PHRASES =

@@ -7,6 +7,8 @@ export type CoachLines = { feeling: string; limit: string; choice: string };
 
 export type Variant = {
   lines: CoachLines;
+  /** Prewritten replies for this new situation, used when the language model is unavailable. */
+  fallbackReplies: { resist: string[]; soften: string[] };
   id: string;
   title: string;
   description: string; // used in prompts
@@ -48,6 +50,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     free: true,
     transfer: {
       id: "leaving_grandma",
+      fallbackReplies: { resist: ["But I want grandma!", "No shoes! I'm playing!", "I'm not going!"], soften: ["...can grandma come to the car?", "Okay... I put one shoe.", "Can I bring the toy car?"] },
       lines: { feeling: "You love playing at grandma's.", limit: "It's time to go home now.", choice: "Do you want to put on your shoes or should I help?" },
       title: "Leaving grandma's house",
       description:
@@ -76,6 +79,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     free: true,
     transfer: {
       id: "tablet_off",
+      fallbackReplies: { resist: ["Just one more minute!", "No! It's my show!", "I'm not hungry!"], soften: ["...can I watch after dinner?", "Okay... I press it.", "Can it be on pause?"] },
       lines: { feeling: "You really want to see the end of the show.", limit: "It's time to turn it off for dinner.", choice: "Do you want to press the button or should I?" },
       title: "Turning off the tablet before dinner",
       description:
@@ -105,6 +109,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     free: false,
     transfer: {
       id: "grabbing_friend",
+      fallbackReplies: { resist: ["She had it forever!", "It's MINE now!", "I don't want to share!"], soften: ["...okay, my turn next?", "Can I have the blocks?", "I say sorry?"] },
       lines: { feeling: "You really want a turn with the doll.", limit: "I won't let you push.", choice: "You can ask for a turn or pick another toy." },
       title: "Grabbing a toy from a friend",
       description:
@@ -133,6 +138,7 @@ export const SCENARIOS: Record<ScenarioId, Scenario> = {
     free: true,
     transfer: {
       id: "custom_transfer",
+      fallbackReplies: { resist: ["One more slide!", "No! I'm not done!", "I want to stay!"], soften: ["...can I hop like a bunny?", "Okay... hold my hand.", "Can we come back?"] },
       lines: { feeling: "You wish we could stay.", limit: "It's time to go home now.", choice: "Do you want to walk or hop to the car?" },
       title: "Leaving the playground",
       description: "It is time to leave the playground and go home. The child is on the slide and does not want to leave.",

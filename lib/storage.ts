@@ -38,6 +38,7 @@ export type Store = {
   unlocked: boolean;
   custom?: { situation: string; said?: string }; // the parent's own moment
   lesson?: string | null; // the lesson the parent just read, shown as the focus of the next practice
+  lessonsRead?: string[]; // lessons the parent has opened
   profile?: Profile; // answers from the start quiz
 };
 
@@ -102,6 +103,11 @@ export function save(s: Store) {
     /* storage may be full or disabled; the app still works for this visit */
   }
   window.dispatchEvent(new Event(EVENT));
+}
+
+/** Erases everything on this device: quiz answers, practice, plan, reminder choices and Plus (demo) unlock. */
+export function resetStore() {
+  save(blank());
 }
 
 let cachedRaw: string | null | undefined;

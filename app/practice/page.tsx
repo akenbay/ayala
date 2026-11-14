@@ -32,7 +32,7 @@ import {
   TypingDots,
   findMarks,
 } from "@/components/ui";
-import { codeCoach, type Coach } from "@/lib/coach";
+import { codeCoach, reflectFeeling, type Coach } from "@/lib/coach";
 import type { Crisis } from "@/lib/safety";
 import { CrisisCard } from "@/components/CrisisCard";
 import { Sam, faceFor } from "@/components/Sam";
@@ -233,12 +233,12 @@ export default function PracticePage() {
     });
     setStep(kind === "first" ? "score" : kind === "retry" ? "compare" : "done");
     window.scrollTo({ top: 0 });
-    loadCoach(kind, turns);
+    loadCoach(kind, turns, shown[0]?.role === "child" ? shown[0].text : undefined);
   }
 
   /** Asks the coach to read the whole conversation. Falls back to the code coach in the browser. */
-  async function loadCoach(k: AttemptKind, turns: Turn[]) {
-    const input = { scenarioId, transfer: k === "transfer", age, turns, situation: own?.situation };
+  async function loadCoach(k: AttemptKind, turns: Turn[], opener?: string) {
+    const input = { scenarioId, transfer: k === "transfer", age, turns, situation: own?.situation, opener };
     setCoaches((c) => ({ ...c, [k]: "loading" }));
     let result: Coach;
     try {
@@ -269,6 +269,11 @@ export default function PracticePage() {
       : `Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`;
   const currentState = [...shown].reverse().find((m) => m.role === "child" && m.state)?.state;
   const lesson = kind === "first" ? lessonById(store?.lesson) : undefined;
+  // "Need an idea?" starts from what Sam actually said, not a stock line.
+  const ideaLines = describe(scenarioId, transfer).lines;
+  const ideaFromSam = shown[0]?.text
+    ? [reflectFeeling(shown[0].text) ?? ideaLines.feeling, ideaLines.limit, ideaLines.choice].join(" ")
+    : IDEAS[scenarioId].first;
   const firstCoach = typeof coaches.first === "object" ? coaches.first : null;
 
   return (
@@ -313,7 +318,7 @@ export default function PracticePage() {
             msgs={shown}
             setMsgs={setMsgs}
             idea={
-              kind === "first" ? IDEAS[scenarioId].first : kind === "retry" ? (firstCoach?.rewrite?.text ?? IDEAS[scenarioId].retry) : null
+              kind === "first" ? ideaFromSam : kind === "retry" ? (firstCoach?.rewrite?.text ?? IDEAS[scenarioId].retry) : null
             }
             ideaLabel={kind === "retry" && firstCoach?.rewrite ? "Your words, improved" : "One idea (sample)"}
             onFinish={finishAttempt}
@@ -520,6 +525,7 @@ function Chat(props: {
   const [pending, setPending] = useState("");
   const [crisis, setCrisis] = useState<Crisis["kind"] | null>(null);
   const [ageOpen, setAgeOpen] = useState(false);
+  const [quick, setQuick] = useState(false); // Sam is using prewritten lines because the AI did not answer
   const voice = useVoice((said) => setText((t) => (t ? `${t} ${said}` : said).slice(0, MAX_CHARS)));
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
@@ -586,7 +592,10 @@ function Chat(props: {
           total: (data as Scorecard).total,
         }),
       });
-      const d = r.ok ? ((await r.json()) as { reply: string; state: SamState }) : { reply: "Hmph.", state: "resisting" as SamState };
+      const d = r.ok
+        ? ((await r.json()) as { reply: string; state: SamState; degraded?: boolean })
+        : { reply: "Hmph.", state: "resisting" as SamState, degraded: true };
+      setQuick(Boolean(d.degraded));
       setMsgs((m) => [...m, { role: "child", text: d.reply, state: d.state }]);
     } catch {
       setError("Connection problem. Check your internet and try again.");
@@ -790,6 +799,7 @@ function Chat(props: {
         )}
         <p className="mt-2 text-center text-xs text-muted">
           {parentTurns === 0 && !transfer ? "About 2 minutes. No account needed. " : ""}Sam is a pretend toddler. Real children respond differently.
+          {quick && " Quick mode: Sam is using prewritten lines right now."}
         </p>
       </footer>
     </div>

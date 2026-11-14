@@ -94,3 +94,9 @@ export function lessonById(id?: string | null): Lesson | undefined {
 export function lessonSource(l: Lesson) {
   return CDC[l.cdc];
 }
+
+/** The lesson to start with, from the skill the quiz (or practice) says to work on first. */
+export function lessonForSkill(skill?: Dimension | null): Lesson {
+  const id = skill === "clear_direction" || skill === "positive_guidance" ? "directions" : skill === "boundaries" || skill === "calm_respectful" ? "limits" : "feeling";
+  return LESSONS.find((l) => l.id === id)!;
+}

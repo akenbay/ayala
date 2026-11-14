@@ -112,10 +112,10 @@ Rules: only mention things from the situation or from what the parent said. Do n
 }
 
 /** Deterministic fallback replies, used when the model is unavailable. */
-export function fallbackReply(scenarioId: ScenarioId, state: SamState, childTurn: number): string {
+export function fallbackReply(scenarioId: ScenarioId, state: SamState, childTurn: number, transfer = false): string {
   const s = SCENARIOS[scenarioId];
-  const pool =
-    state === "gave_in" ? GAVE_IN : state === "meltdown" ? MELTDOWN : state === "going_along" ? s.fallbackReplies.soften : s.fallbackReplies.resist;
+  const replies = transfer ? s.transfer.fallbackReplies : s.fallbackReplies;
+  const pool = state === "gave_in" ? GAVE_IN : state === "meltdown" ? MELTDOWN : state === "going_along" ? replies.soften : replies.resist;
   return pool[childTurn % pool.length];
 }
 
@@ -139,7 +139,7 @@ export async function toddlerReply(opts: {
   const signals = opts.passed ? signalsFromChecks(opts.passed, last) : signalsFromText(last);
   const state = decideState(signals, childTurn, priorHarsh, opts.total);
 
-  const fallback = () => ({ reply: fallbackReply(scenarioId, state, childTurn), state, degraded: true });
+  const fallback = () => ({ reply: fallbackReply(scenarioId, state, childTurn, transfer), state, degraded: true });
   if (!llmAvailable()) return fallback();
   try {
     const reply = await callLlm({

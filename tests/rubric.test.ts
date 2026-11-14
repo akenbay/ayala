@@ -236,3 +236,14 @@ describe("Sam is not more obedient on the retry", () => {
     expect(decideState({ ...signalsFromText(t), feeling: true, limit: true }, 0, 0, 90)).toBe("going_along");
   });
 });
+
+describe("new situation sounds new", () => {
+  it("uses its own prewritten replies, not the first moment's", async () => {
+    const { fallbackReply } = await import("@/lib/toddler");
+    for (const id of ["leaving_playground", "bedtime_refusal", "hitting_sibling"] as const) {
+      for (let turn = 0; turn < 3; turn++) {
+        expect(fallbackReply(id, "resisting", turn, true)).not.toBe(fallbackReply(id, "resisting", turn, false));
+      }
+    }
+  });
+});
