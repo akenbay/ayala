@@ -1,19 +1,31 @@
 @import "tailwindcss";
 
+/* Ayala palette (Clownfish): cream, three oranges, black. Green is functional only ("helped"). */
 @theme {
-  --color-cream: #fbf8f3;
-  --color-ink: #1f2a37;
-  --color-muted: #5b6575;
-  --color-line: #e7e1d7;
-  --color-calm: #2f6f6a;
-  --color-calm-soft: #e3f0ee;
-  --color-sun: #f4b860;
-  --color-sun-soft: #fdf1dc;
-  --color-good: #2f7d4f;
-  --color-good-soft: #e3f3e8;
-  --color-bad: #b4483c;
-  --color-bad-soft: #fbe7e4;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-cream: #f2f0e4;
+  --color-paper: #faf9f3;
+  --color-ink: #000000;
+  --color-muted: #5e5c55;
+  --color-soft-ink: #3b3a36;
+  --color-line: #e3e0d2;
+  --color-field: #cfcbb8;
+  --color-track: #e8e5d6;
+  --color-orange: #f28705;
+  --color-deep: #f25c05;
+  --color-red: #f24405;
+  --color-peach: #fbe2bf;
+  --color-peach-soft: #fdf0dc;
+  /* Legacy names kept so every page reskins from one place. */
+  --color-calm: #000000;
+  --color-calm-soft: #fbe2bf;
+  --color-sun: #f28705;
+  --color-sun-soft: #fbe2bf;
+  --color-good: #1f5a37;
+  --color-good-line: #2e7d4f;
+  --color-good-soft: #d9ebdf;
+  --color-bad: #a8360a;
+  --color-bad-soft: #fde6dc;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 html {
@@ -26,29 +38,82 @@ body {
   font-family: var(--font-sans);
 }
 
+a:focus-visible,
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--color-deep);
+  outline-offset: 2px;
+}
+
 @utility card {
-  @apply rounded-2xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(31,42,55,0.04)];
+  @apply rounded-2xl bg-white p-5;
+}
+
+@utility label-caps {
+  @apply text-[13px] font-bold uppercase tracking-[0.04em] text-muted;
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 bg-calm text-white hover:bg-[#275e5a];
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-bold text-cream transition hover:bg-[#222] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+}
+@utility btn-orange {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-orange px-5 py-2.5 text-[15px] font-bold text-ink transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50;
 }
 @utility btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 border border-line bg-white text-ink hover:bg-cream;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-ink bg-transparent px-5 py-2.5 text-base font-bold text-ink transition hover:bg-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility chip {
-  @apply rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition;
+  @apply min-h-11 rounded-full border-[1.5px] border-field bg-white px-4 py-2 text-[15px] font-semibold text-ink transition;
   &[aria-pressed="true"] {
-    @apply border-calm bg-calm-soft text-calm;
+    @apply border-ink bg-ink text-cream;
   }
 }
 
-mark.good {
-  @apply rounded bg-good-soft px-0.5 text-good;
+/* Highlights in the parent's own words. */
+mark.good,
+button.mark-good {
+  @apply rounded-t-md rounded-b-[2px] border-b-[2.5px] border-good-line bg-good-soft px-1 text-ink;
 }
-mark.bad {
-  @apply rounded bg-bad-soft px-0.5 text-bad;
+mark.bad,
+button.mark-bad {
+  @apply rounded-md bg-transparent px-0.5 text-ink;
+  text-decoration: underline wavy var(--color-red);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+button.mark-good,
+button.mark-bad {
+  font: inherit;
+  cursor: pointer;
+}
+button.mark-good[aria-pressed="true"],
+button.mark-bad[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #000;
+}
+
+@keyframes ayala-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes ayala-shimmer {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+.typing-dot {
+  animation: ayala-dot 1.2s infinite ease-in-out;
+}
+.shimmer {
+  animation: ayala-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot,
+  .shimmer {
+    animation: none;
+    opacity: 0.7;
+  }
 }

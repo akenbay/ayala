@@ -5,22 +5,30 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SCENARIOS } from "@/lib/scenarios";
 import { DIMENSION_LABELS, DIMENSIONS } from "@/lib/rubric/types";
+import { PRICE_LABEL } from "@/lib/pricing";
 import { FOCUS_TIPS, buildPlan, demoWeekAttempts, focusLabel, reminderIcs, update, useStore, weakestDimension } from "@/lib/storage";
-import { scoreTone } from "@/components/ui";
+import { Arrow, Bell, Calendar, Check, ChevronDown } from "@/components/icons";
 
-const KIND_LABEL = { first: "First try", retry: "Retry", transfer: "On your own" } as const;
+const KIND_LABEL = { first: "First try", retry: "With the tip", transfer: "On your own" } as const;
 
 function Sparkline({ values }: { values: number[] }) {
-  if (values.length < 2) return null;
-  const w = 300;
-  const h = 70;
-  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - (v / 100) * (h - 8) - 4]);
+  if (values.length < 2) return <div className="h-10" />;
+  const w = 140;
+  const h = 48;
+  const pts = values.map((v, i) => [4 + (i / (values.length - 1)) * (w - 8), h - 4 - (v / 100) * (h - 8)]);
+  const last = pts[pts.length - 1];
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full" aria-label="Score history">
-      <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#2f6f6a" strokeWidth={2.5} strokeLinejoin="round" />
-      {pts.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={3.5} fill="#2f6f6a" />
-      ))}
+    <svg width="100%" height="40" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={`Scores over ${values.length} practices`}>
+      <polyline
+        points={pts.map((p) => p.join(",")).join(" ")}
+        fill="none"
+        stroke="#000"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle cx={last[0]} cy={last[1]} r={4} fill="#2E7D4F" />
     </svg>
   );
 }
@@ -53,24 +61,35 @@ function Reminder({ tip }: { tip: string }) {
     setSaved(true);
   }
   return (
-    <div className="card">
-      <p className="font-semibold">Daily reminder</p>
-      <p className="mt-1 text-sm text-muted">
-        Pick a time before the hard moment (say, before daycare pickup). We add a 5 minute practice to your calendar for the next 7 days, with today&apos;s focus. No account needed.
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <label htmlFor="rt" className="sr-only">Reminder time</label>
-        <input id="rt" type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2.5" />
-        <button className="btn-primary" onClick={download}>Add to my calendar</button>
-        {saved && <span className="text-sm text-good">Calendar file downloaded. Open it to add the reminder.</span>}
-      </div>
-    </div>
+    <section aria-label="Daily reminder" className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream">
+        <Bell size={20} />
+      </span>
+      <label htmlFor="remindTime" className="flex-1 text-[17px] font-bold">
+        Remind me daily
+      </label>
+      <input
+        id="remindTime"
+        type="time"
+        value={time}
+        onChange={(e) => setTime(e.target.value)}
+        className="h-11 rounded-xl border-[1.5px] border-field bg-cream px-2.5 text-base font-semibold"
+      />
+      <button
+        type="button"
+        onClick={download}
+        className="flex min-h-11 w-full items-center gap-1.5 pl-[52px] text-[15px] font-semibold underline underline-offset-[3px]"
+      >
+        <Calendar size={16} /> {saved ? "Downloaded. Open the file to add it." : "Add to my calendar"}
+      </button>
+    </section>
   );
 }
 
 export default function ProgressPage() {
   const router = useRouter();
   const store = useStore();
+  const [showAll, setShowAll] = useState(false);
 
   // Create the plan once there is practice history.
   useEffect(() => {
@@ -85,35 +104,53 @@ export default function ProgressPage() {
 
   if (!store.attempts.length) {
     return (
-      <div className="card text-center">
-        <h1 className="text-xl font-bold">No practice yet</h1>
-        <p className="mt-2 text-muted">Do one two minute practice and your progress and 7 day plan appear here.</p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <Link href="/" className="btn-primary">
-            Start practicing
+      <div className="mx-auto max-w-xl py-6">
+        <h1 className="text-[28px] font-extrabold tracking-tight">Your progress</h1>
+        <div className="mt-5 flex flex-col items-center gap-3 rounded-2xl bg-white p-6 text-center">
+          <h2 className="text-xl font-extrabold">No practice yet</h2>
+          <p className="text-[17px] text-muted">Do one 2 minute practice and your progress and 7 day plan appear here.</p>
+          <Link href="/" className="btn-primary mt-2 w-full">
+            Start practicing <Arrow size={20} />
           </Link>
-          <button className="btn-ghost" onClick={loadDemoWeek}>
+          <button type="button" className="btn-ghost w-full" onClick={loadDemoWeek}>
             See a sample week (demo)
           </button>
+          <p className="text-xs text-muted">The sample week is labeled demo data, scored by the real rubric with dates moved back.</p>
         </div>
-        <p className="mt-2 text-xs text-muted">The sample week is labeled demo data, scored by the real rubric with dates moved back.</p>
       </div>
     );
   }
 
   const weakest = weakestDimension(store.attempts);
   const recent = [...store.attempts].reverse();
-  const best = Math.max(...store.attempts.map((a) => a.total));
-  const days = new Set(store.attempts.map((a) => a.createdAt.slice(0, 10))).size;
+  const isDemo = store.attempts.some((a) => a.demo);
+
+  // Days practiced in the last 7 days, oldest first.
+  const today = new Date();
+  const daySet = new Set(store.attempts.map((a) => new Date(a.createdAt).toDateString()));
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    return daySet.has(d.toDateString());
+  });
+  const weekDays = week.filter(Boolean).length;
+  const totals = store.attempts.map((a) => a.total);
+  const latest = totals[totals.length - 1];
+  const trend = latest - totals[0];
 
   const avgByDim = DIMENSIONS.map((d) => {
     const vals = store.attempts.map((a) => a.byDimension[d]).filter((v): v is number => typeof v === "number");
     return { d, avg: vals.length ? Math.round(vals.reduce((x, y) => x + y, 0) / vals.length) : null };
-  });
+  })
+    .filter((x): x is { d: (typeof DIMENSIONS)[number]; avg: number } => x.avg !== null)
+    .sort((a, b) => (a.d === weakest ? 1 : b.d === weakest ? -1 : b.avg - a.avg));
+
+  const next = store.plan.find((p) => !p.done);
+  const isLocked = (day: number, free: boolean) => (day > 1 || !free) && !store.unlocked;
 
   function startDay(day: number) {
     const p = store!.plan.find((x) => x.day === day)!;
-    if ((day > 1 || !SCENARIOS[p.scenarioId].free) && !store!.unlocked) {
+    if (isLocked(day, SCENARIOS[p.scenarioId].free)) {
       router.push("/pricing?from=plan");
       return;
     }
@@ -124,118 +161,178 @@ export default function ProgressPage() {
     router.push("/practice");
   }
 
-  function rebuild() {
-    update((x) => {
-      x.plan = buildPlan(x.attempts);
-    });
-  }
-
   return (
-    <div className="space-y-5">
+    <div className="mx-auto flex max-w-xl flex-col gap-[18px] py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Your progress</h1>
-        {!store.attempts.some((a) => a.demo) && (
-          <button className="text-sm text-calm underline" onClick={loadDemoWeek}>
+        <h1 className="text-[28px] font-extrabold tracking-tight">Your progress</h1>
+        {!isDemo && (
+          <button type="button" className="min-h-11 text-[15px] font-semibold underline underline-offset-[3px]" onClick={loadDemoWeek}>
             See a sample week (demo)
           </button>
         )}
       </div>
-      {store.attempts.some((a) => a.demo) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sun-soft px-4 py-3 text-sm text-[#7a4f10]">
+
+      {isDemo && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-peach px-4 py-3 text-[15px]">
           <span>
-            <b>Demo data:</b> a sample week, scored by the real rubric with dates moved back so you can see progress over time.
+            <b>Demo data:</b> a sample week, scored by the real rubric with dates moved back.
           </span>
-          <button className="underline" onClick={clearDemo}>
+          <button type="button" className="font-semibold underline underline-offset-2" onClick={clearDemo}>
             Remove demo data
           </button>
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          ["Practice rounds", store.attempts.length],
-          ["Best score", best],
-          ["Days practiced", days],
-        ].map(([l, v]) => (
-          <div key={l as string} className="card p-4 text-center">
-            <p className="text-2xl font-bold">{v}</p>
-            <p className="text-xs text-muted">{l}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <p className="font-semibold">Score history</p>
-        <Sparkline values={store.attempts.map((a) => a.total)} />
-        <ul className="mt-2 divide-y divide-line text-sm">
-          {recent.slice(0, 8).map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-3 py-2">
-              <span className="min-w-0 truncate">
-                {a.demo && <span className="mr-1 rounded bg-sun-soft px-1.5 py-0.5 text-[10px] font-semibold text-[#8a5a12]">DEMO</span>}
-                <b>{KIND_LABEL[a.kind]}</b> · {a.kind === "transfer" ? SCENARIOS[a.scenarioId].transfer.title : SCENARIOS[a.scenarioId].short}
-                <span className="block truncate text-xs text-muted">&ldquo;{a.turns[0]?.parent}&rdquo;</span>
-              </span>
-              <span className={`shrink-0 font-semibold ${scoreTone(a.total).text}`}>{a.total}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="card">
-        <p className="font-semibold">Skills</p>
-        <div className="mt-3 space-y-3">
-          {avgByDim
-            .filter((x) => x.avg !== null)
-            .map(({ d, avg }) => (
-              <div key={d}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className={d === weakest ? "font-semibold text-bad" : "font-medium"}>
-                    {DIMENSION_LABELS[d]} {d === weakest && "· weakest"}
-                  </span>
-                  <span className="text-muted">{avg}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[#ece6dc]">
-                  <div className={`h-full rounded-full ${d === weakest ? "bg-bad" : "bg-calm"}`} style={{ width: `${avg}%` }} />
-                </div>
-              </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2.5 rounded-2xl bg-white p-4">
+          <span className="text-sm font-semibold text-muted">This week</span>
+          <span className="text-[30px] font-extrabold leading-none">
+            {weekDays} <span className="text-base font-semibold">{weekDays === 1 ? "day" : "days"}</span>
+          </span>
+          <div role="img" aria-label={`Practiced on ${weekDays} of the last 7 days`} className="grid grid-cols-7 gap-1">
+            {week.map((on, i) => (
+              <span key={i} className={`h-3 rounded-full ${on ? "bg-orange" : "bg-line"}`} />
             ))}
+          </div>
         </div>
-        {weakest && <p className="mt-3 rounded-xl bg-sun-soft px-4 py-2 text-sm text-[#7a4f10]">Tip: {FOCUS_TIPS[weakest]}</p>}
+        <div className="flex flex-col gap-2.5 rounded-2xl bg-white p-4">
+          <span className="text-sm font-semibold text-muted">Score trend</span>
+          <span className="text-[30px] font-extrabold leading-none">
+            {latest}{" "}
+            {trend !== 0 && (
+              <span className={`text-[15px] font-bold ${trend > 0 ? "text-good" : "text-bad"}`}>
+                {trend > 0 ? "+" : "−"}
+                {Math.abs(trend)}
+              </span>
+            )}
+          </span>
+          <Sparkline values={totals.slice(-10)} />
+        </div>
       </div>
+
+      {next && (
+        <section aria-label="Today's plan step" className="flex flex-col gap-2.5 rounded-[20px] bg-orange p-5">
+          <span className="text-sm font-extrabold uppercase tracking-[0.04em]">Today, day {next.day} of 7</span>
+          <h2 className="text-[26px] font-extrabold leading-tight tracking-tight">
+            {SCENARIOS[next.scenarioId].short}: {focusLabel(next.focus).toLowerCase()}
+          </h2>
+          <p className="text-[17px] leading-snug">{FOCUS_TIPS[next.focus]}</p>
+          <button type="button" className="btn-primary mt-1.5 h-14 text-lg" onClick={() => startDay(next.day)}>
+            {isLocked(next.day, SCENARIOS[next.scenarioId].free) ? "Unlock with Plus" : "Start"} <Arrow size={20} />
+          </button>
+        </section>
+      )}
 
       <Reminder tip={FOCUS_TIPS[weakest ?? "emotional_response"]} />
 
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <p className="font-semibold">Your 7 day plan</p>
-          <button className="text-sm text-calm underline" onClick={rebuild}>
-            Refresh for my weakest skill
-          </button>
-        </div>
-        <p className="mt-1 text-sm text-muted">One short practice a day. Day 1 is free; the rest come with Plus.</p>
-        <ol className="mt-3 space-y-2">
+      <section aria-label="Skills" className="flex flex-col gap-3.5 rounded-2xl bg-white p-[18px]">
+        <h2 className="text-[19px] font-extrabold">Your skills</h2>
+        <ul className="flex flex-col gap-3">
+          {avgByDim.map(({ d, avg }) =>
+            d === weakest ? (
+              <li key={d} className="-mx-3 flex flex-col gap-2 rounded-xl bg-peach-soft p-3">
+                <div className="flex items-center justify-between text-base">
+                  <span className="font-extrabold">{DIMENSION_LABELS[d]}</span>
+                  <span className="rounded-full bg-ink px-2.5 py-0.5 text-[13px] font-extrabold text-cream">Practice next</span>
+                </div>
+                <div role="img" aria-label={`${DIMENSION_LABELS[d]} ${avg} of 100, your weakest skill`} className="h-2 rounded-full bg-[#F2E0C4]">
+                  <div className="h-2 rounded-full bg-deep" style={{ width: `${avg}%` }} />
+                </div>
+                <span className="text-[15px] text-soft-ink">{FOCUS_TIPS[d]}</span>
+              </li>
+            ) : (
+              <li key={d} className="flex flex-col gap-1.5">
+                <div className="flex justify-between text-base">
+                  <span>{DIMENSION_LABELS[d]}</span>
+                  <span className="font-bold">{avg >= 80 ? "Strong" : avg >= 50 ? "Growing" : "Starting"}</span>
+                </div>
+                <div role="img" aria-label={`${DIMENSION_LABELS[d]} ${avg} of 100`} className="h-2 rounded-full bg-track">
+                  <div className="h-2 rounded-full bg-ink" style={{ width: `${avg}%` }} />
+                </div>
+              </li>
+            ),
+          )}
+        </ul>
+      </section>
+
+      <section className="rounded-2xl bg-white p-[18px]">
+        <h2 className="text-[19px] font-extrabold">Your 7 day plan</h2>
+        <p className="mt-1 text-[15px] text-muted">One short practice a day. Day 1 is free, the rest come with Plus.</p>
+        <ol className="mt-3 flex flex-col gap-2">
           {store.plan.map((p) => {
-            const locked = (p.day > 1 || !SCENARIOS[p.scenarioId].free) && !store.unlocked;
+            const locked = isLocked(p.day, SCENARIOS[p.scenarioId].free);
             return (
-              <li key={p.day} className="flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3">
+              <li key={p.day} className="flex items-center justify-between gap-3 rounded-xl bg-cream px-4 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">
+                  <p className="text-[15px] font-bold">
                     Day {p.day}: {SCENARIOS[p.scenarioId].short}
                   </p>
-                  <p className="text-xs text-muted">Focus: {focusLabel(p.focus).toLowerCase()}</p>
+                  <p className="text-[13px] text-muted">Focus: {focusLabel(p.focus).toLowerCase()}</p>
                 </div>
                 {p.done ? (
-                  <span className="shrink-0 rounded-full bg-good-soft px-3 py-1 text-xs font-semibold text-good">Done ✓</span>
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-good-soft px-3 py-1 text-[13px] font-bold text-good">
+                    <Check size={12} /> Done
+                  </span>
+                ) : locked ? (
+                  <button type="button" className="shrink-0 rounded-full bg-ink px-3 py-1 text-[13px] font-bold text-cream" onClick={() => startDay(p.day)}>
+                    Plus
+                  </button>
                 ) : (
-                  <button className={locked ? "btn-ghost shrink-0 px-3 py-2 text-sm" : "btn-primary shrink-0 px-3 py-2 text-sm"} onClick={() => startDay(p.day)}>
-                    {locked ? "🔒 Plus" : "Start"}
+                  <button type="button" className="btn-orange min-h-9 shrink-0 px-4 py-1.5 text-sm" onClick={() => startDay(p.day)}>
+                    Start
                   </button>
                 )}
               </li>
             );
           })}
         </ol>
-      </div>
+      </section>
+
+      <section className="rounded-2xl bg-white p-[18px]">
+        <h2 className="text-[19px] font-extrabold">History</h2>
+        <ul className="mt-2 divide-y divide-line">
+          {recent.slice(0, showAll ? 30 : 4).map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-[15px] font-bold">
+                  {a.demo && <span className="rounded bg-peach px-1.5 py-0.5 text-[10px] font-bold">DEMO</span>}
+                  {KIND_LABEL[a.kind]} · {a.kind === "transfer" ? SCENARIOS[a.scenarioId].transfer.title : SCENARIOS[a.scenarioId].short}
+                </span>
+                <span className="block truncate text-[13px] text-muted">&ldquo;{a.turns[0]?.parent}&rdquo;</span>
+              </span>
+              <span className="shrink-0 text-lg font-extrabold">{a.total}</span>
+            </li>
+          ))}
+        </ul>
+        {recent.length > 4 && (
+          <button
+            type="button"
+            className="mt-1 flex min-h-11 items-center gap-1 text-[15px] font-semibold"
+            aria-expanded={showAll}
+            onClick={() => setShowAll((v) => !v)}
+          >
+            {showAll ? "Show less" : `Show all ${recent.length}`} <ChevronDown size={18} className={showAll ? "rotate-180" : ""} />
+          </button>
+        )}
+      </section>
+
+      {!store.unlocked && (
+        <section aria-label="Ayala Plus" className="flex flex-col gap-2 rounded-2xl border border-line bg-paper p-[18px]">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>
+            <span className="text-[17px] font-extrabold">All scenarios and the full 7 day plan</span>
+          </div>
+          <p className="text-base text-soft-ink">
+            <b className="text-ink">{PRICE_LABEL}.</b> Cancel anytime.
+          </p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <span className="text-[13px] text-muted">Test mode, no real charge</span>
+            <Link href="/pricing" className="btn-ghost">
+              See Plus
+            </Link>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

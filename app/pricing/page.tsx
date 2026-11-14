@@ -74,28 +74,28 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-xl space-y-5 py-4">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-[#8a5a12]">Ayala Plus</p>
-        <h1 className="mt-1 text-3xl font-bold">Keep practicing through the toddler years</h1>
+        <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>
+        <h1 className="mt-3 text-[32px] font-extrabold leading-tight tracking-tight">Keep practicing through the toddler years</h1>
         <p className="mt-2 text-muted">The free practice shows what works. Plus makes it a habit: a few minutes a day, aimed at the skill you need most.</p>
       </div>
 
       {msg && (
         <p
           className={`rounded-xl px-4 py-3 text-sm ${
-            msg.tone === "good" ? "bg-good-soft text-good" : msg.tone === "bad" ? "bg-bad-soft text-bad" : "bg-sun-soft text-[#7a4f10]"
+            msg.tone === "good" ? "bg-good-soft text-good" : msg.tone === "bad" ? "bg-bad-soft text-bad" : "bg-peach text-ink"
           }`}
         >
           {msg.text}
         </p>
       )}
 
-      <div className="card border-2 border-calm">
+      <div className="card shadow-[inset_0_0_0_2px_#000]">
         <div className="flex items-end justify-between">
           <div>
             <p className="text-sm text-muted">Plus</p>
-            <p className="text-4xl font-bold">
+            <p className="text-5xl font-extrabold tracking-tight">
               $12.99<span className="text-base font-normal text-muted">/month</span>
             </p>
           </div>
@@ -127,7 +127,7 @@ export default function PricingPage() {
             {busy ? <Spinner /> : "Get Plus"}
           </button>
         )}
-        <div className="mt-4 rounded-xl bg-cream px-4 py-3 text-sm">
+        <div className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm">
           <b>Test mode, no real charge.</b> Use card <code className="font-mono font-semibold">{TEST_CARD}</code>, any future date, any CVC
           and any ZIP.
         </div>

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SCENARIOS, describe, type ScenarioId } from "@/lib/scenarios";
-import { buildScorecard } from "@/lib/rubric/score";
-import type { Scorecard } from "@/lib/rubric/types";
+import type { CheckResult, Dimension, Scorecard } from "@/lib/rubric/types";
 import { MAX_CHARS } from "@/lib/rubric/validate";
 import {
+  FOCUS_TIPS,
   buildPlan,
   newId,
   summarize,
@@ -18,27 +18,77 @@ import {
   type AttemptKind,
   type Turn,
 } from "@/lib/storage";
-import { DimensionBars, Highlighted, ScoreRing, ScorecardView, Spinner, scoreTone } from "@/components/ui";
+import {
+  CDC_URL,
+  CheckList,
+  DimensionBars,
+  Highlighted,
+  Legend,
+  ScoreRing,
+  Spinner,
+  TypingDots,
+  findMarks,
+} from "@/components/ui";
+import { Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 
 const MAX_PARENT_TURNS = 2;
 
-const SAMPLES: Record<ScenarioId, { weak: string; better: string }> = {
+/** Labeled sample answers behind "Need an idea?". They run through the real scoring. */
+const IDEAS: Record<ScenarioId, { first: string; retry: string }> = {
   leaving_playground: {
-    weak: "Come on, we're leaving NOW! Stop it!",
-    better: "You wish we could stay. It's time to go now. Do you want to walk or hop to the car?",
+    first: "You wish we could stay. It's time to go now. Do you want to walk or hop to the car?",
+    retry: SCENARIOS.leaving_playground.scripts[0],
   },
   bedtime_refusal: {
-    weak: "Can you go to bed please? Stop arguing!",
-    better: "You really want to keep building. It's bedtime now. One book or two songs?",
+    first: "You really want to keep building. It's bedtime now. One book or two songs?",
+    retry: SCENARIOS.bedtime_refusal.scripts[0],
   },
   hitting_sibling: {
-    weak: "Stop hitting! Bad boy!",
-    better: "I won't let you hit. Hitting hurts. You can stomp your feet or squeeze the pillow.",
+    first: "I won't let you hit. Hitting hurts. You can stomp your feet or squeeze the pillow.",
+    retry: SCENARIOS.hitting_sibling.scripts[0],
   },
 };
 
+const SITUATION: Record<ScenarioId, { main: string; transfer: string }> = {
+  leaving_playground: { main: "refuses to leave the playground.", transfer: "doesn't want to leave grandma's house." },
+  bedtime_refusal: { main: "refuses to go to bed.", transfer: "won't turn off the tablet before dinner." },
+  hitting_sibling: { main: "just hit their brother over a toy truck.", transfer: "grabbed a doll from a friend." },
+};
+
+const STRENGTH: Record<Dimension, string> = {
+  clear_direction: "clear",
+  calm_respectful: "calm",
+  emotional_response: "warm",
+  boundaries: "firm",
+  positive_guidance: "positive",
+};
+const NEXT: Record<Dimension, string> = {
+  clear_direction: "Try one short direction.",
+  calm_respectful: "Try a calmer tone.",
+  emotional_response: "Try naming the feeling.",
+  boundaries: "Try stating the limit.",
+  positive_guidance: "Try offering two choices.",
+};
+
+function biggestMiss(card: Scorecard): CheckResult | null {
+  const failed = card.checks.filter((c) => !c.passed && c.maxPoints > 0);
+  return failed.sort((a, b) => b.maxPoints - b.points - (a.maxPoints - a.points))[0] ?? null;
+}
+
+/** One sentence: what went well, then the single next thing to try. Built from the real checks. */
+function verdict(card: Scorecard): string {
+  const strengths = (Object.keys(STRENGTH) as Dimension[])
+    .filter((d) => card.byDimension[d].max > 0 && card.byDimension[d].earned / card.byDimension[d].max >= 0.75)
+    .slice(0, 2)
+    .map((d) => STRENGTH[d]);
+  const miss = biggestMiss(card);
+  const head = strengths.length ? strengths.join(" and ") : "";
+  const first = card.total < 55 ? "A first try." : head ? head[0].toUpperCase() + head.slice(1) + "." : "A good start.";
+  return miss ? `${first} ${NEXT[miss.dimension]}` : `${first} Every check passed.`;
+}
+
 type Msg = { role: "child" | "parent"; text: string; card?: Scorecard };
-type Step = "script" | "chat" | "score" | "compare" | "done";
+type Step = "chat" | "score" | "compare" | "done";
 
 export default function PracticePage() {
   const router = useRouter();
@@ -50,9 +100,9 @@ export default function PracticePage() {
   const allowed = Boolean(store?.current && (SCENARIOS[store.current].free || store.unlocked));
   const ready = Boolean(store) && allowed;
 
-  const [step, setStep] = useState<Step>("script");
+  const [step, setStep] = useState<Step>("chat");
   const [kind, setKind] = useState<AttemptKind>("first");
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ role: "child", text: "" }]);
   const [results, setResults] = useState<Partial<Record<AttemptKind, Attempt>>>({});
 
   useEffect(() => {
@@ -62,20 +112,23 @@ export default function PracticePage() {
   }, [store, allowed, router]);
 
   const scenario = SCENARIOS[scenarioId];
-  const situation = describe(scenarioId, kind === "transfer");
+  const transfer = kind === "transfer";
+  const title = transfer ? scenario.transfer.title : scenario.short;
+  // The opener depends on the scenario, which is known only after the store loads.
+  const shown = msgs.length === 1 && !msgs[0].text ? [{ role: "child" as const, text: describe(scenarioId, false).childOpener }] : msgs;
 
   function startChat(k: AttemptKind) {
     setKind(k);
     setMsgs([{ role: "child", text: describe(scenarioId, k === "transfer").childOpener }]);
     setStep("chat");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0 });
   }
 
   function finishAttempt() {
     const turns: Turn[] = [];
-    msgs.forEach((m, i) => {
+    shown.forEach((m, i) => {
       if (m.role === "parent" && m.card) {
-        const next = msgs[i + 1];
+        const next = shown[i + 1];
         turns.push({ parent: m.text, child: next?.role === "child" ? next.text : null, card: m.card });
       }
     });
@@ -102,136 +155,107 @@ export default function PracticePage() {
       }
     });
     setStep(kind === "first" ? "score" : kind === "retry" ? "compare" : "done");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0 });
   }
 
-  if (!ready) return <Spinner label="Loading…" />;
+  if (!ready)
+    return (
+      <div className="grid min-h-[60vh] place-items-center">
+        <Spinner label="Loading…" />
+      </div>
+    );
+
+  const tip = results.first ? biggestMiss(results.first.turns[0].card) : null;
 
   return (
-    <div className="space-y-5">
-      <Progress step={step} kind={kind} />
-      <div>
-        <p className="text-sm font-semibold text-calm">
-          {kind === "transfer" ? "New situation, on your own" : scenario.title} · age {age}
-        </p>
-        <h1 className="mt-1 text-2xl font-bold">
-          {step === "script" && "First, read what could work"}
-          {step === "chat" && (kind === "first" ? "Now say it your way" : kind === "retry" ? "Try it again" : situation.title)}
-          {step === "score" && "Your scorecard"}
-          {step === "compare" && "What changed"}
-          {step === "done" && "You did it on your own"}
-        </h1>
+    <div className="-mx-5 flex min-h-[100dvh] flex-col">
+      <PracticeHeader title={title} step={step} kind={kind} />
+
+      <div className="mx-auto w-full max-w-xl flex-1 px-4 sm:px-5">
+        {step === "chat" && (
+          <Chat
+            key={kind}
+            scenarioId={scenarioId}
+            age={age}
+            context={context}
+            transfer={transfer}
+            situation={`Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`}
+            banner={
+              kind === "retry" && tip
+                ? { label: "Your tip", text: FOCUS_TIPS[tip.dimension] }
+                : transfer
+                  ? { label: "On your own", text: "A new moment. No tips this time." }
+                  : null
+            }
+            msgs={shown}
+            setMsgs={setMsgs}
+            idea={kind === "first" ? IDEAS[scenarioId].first : kind === "retry" ? IDEAS[scenarioId].retry : null}
+            onFinish={finishAttempt}
+          />
+        )}
+
+        {step === "score" && results.first && <AttemptScore attempt={results.first} onRetry={() => startChat("retry")} />}
+
+        {step === "compare" && results.first && results.retry && (
+          <Compare a={results.first} b={results.retry} scenarioId={scenarioId} onTransfer={() => startChat("transfer")} />
+        )}
+
+        {step === "done" && results.transfer && <Done first={results.first} retry={results.retry} transfer={results.transfer} />}
       </div>
-
-      {step === "script" && <ScriptStep scenarioId={scenarioId} onNext={() => startChat("first")} />}
-
-      {step === "chat" && (
-        <Chat
-          key={kind}
-          scenarioId={scenarioId}
-          age={age}
-          context={context}
-          transfer={kind === "transfer"}
-          description={situation.description}
-          msgs={msgs}
-          setMsgs={setMsgs}
-          sample={kind === "first" ? SAMPLES[scenarioId].weak : kind === "retry" ? SAMPLES[scenarioId].better : null}
-          sampleLabel={kind === "retry" ? "Try a sample better answer" : "Try a sample answer"}
-          showScriptPeek={kind === "retry"}
-          onFinish={finishAttempt}
-        />
-      )}
-
-      {step === "score" && results.first && (
-        <AttemptScore attempt={results.first} onRetry={() => startChat("retry")} />
-      )}
-
-      {step === "compare" && results.first && results.retry && (
-        <Compare a={results.first} b={results.retry} onTransfer={() => startChat("transfer")} scenarioId={scenarioId} />
-      )}
-
-      {step === "done" && results.transfer && (
-        <Done first={results.first} retry={results.retry} transfer={results.transfer} scenarioId={scenarioId} />
-      )}
     </div>
   );
 }
 
-function Progress({ step, kind }: { step: Step; kind: AttemptKind }) {
-  const stage =
-    step === "script" ? 0 : kind === "first" && step === "chat" ? 1 : step === "score" ? 2 : kind === "retry" && step === "chat" ? 3 : step === "compare" ? 3 : kind === "transfer" && step === "chat" ? 4 : 5;
-  const labels = ["Script", "Practice", "Score", "Retry", "On your own"];
+function PracticeHeader({ title, step, kind }: { title: string; step: Step; kind: AttemptKind }) {
+  const active = step === "chat" ? (kind === "first" ? 0 : kind === "retry" ? 1 : 2) : step === "score" ? 1 : step === "compare" ? 2 : 3;
+  const labels = ["Try", "Improve", "New situation"];
   return (
-    <ol className="flex gap-1" aria-label="Progress">
-      {labels.map((l, i) => (
-        <li key={l} className="flex-1">
-          <div className={`h-1.5 rounded-full ${i <= stage ? "bg-calm" : "bg-[#e6dfd3]"}`} />
-          <span className={`mt-1 hidden text-[11px] sm:block ${i <= stage ? "text-calm" : "text-muted"}`}>{l}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function ScriptStep({ scenarioId, onNext }: { scenarioId: ScenarioId; onNext: () => void }) {
-  const s = SCENARIOS[scenarioId];
-  // The script is scored by the same code checks, live, so the tags are real.
-  const tagged = useMemo(
-    () =>
-      s.scripts.map((text) => {
-        const card = buildScorecard(text, scenarioId, null, true);
-        return { text, card, tags: card.checks.filter((c) => c.passed && c.evidence).slice(0, 4) };
-      }),
-    [s, scenarioId],
-  );
-  return (
-    <div className="space-y-4">
-      <div className="card">
-        <p className="text-sm text-muted">The situation</p>
-        <p className="mt-1">{s.description}</p>
-        <ChildBubble text={s.childOpener} />
-      </div>
-      {tagged.map(({ text, card, tags }, i) => (
-        <div key={i} className="card">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-sm font-semibold text-calm">Example script {i + 1}</p>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${scoreTone(card.total).bg} ${scoreTone(card.total).text}`}>
-              scores {card.total}
-            </span>
-          </div>
-          <p className="mt-2 text-[17px] leading-relaxed">
-            &ldquo;
-            <Highlighted text={text} checks={card.checks} />
-            &rdquo;
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {tags.map((t) => (
-              <span key={t.id} className="rounded-full bg-good-soft px-2.5 py-1 text-xs text-good">
-                ✓ {t.label}
-              </span>
-            ))}
-          </div>
+    <header className="sticky top-0 z-20 border-b border-line bg-cream px-4 pb-3.5 pt-3">
+      <div className="mx-auto max-w-xl">
+        <div className="flex items-center justify-between">
+          <Link href="/" aria-label="Back to home" className="flex h-11 w-11 items-center justify-center rounded-full bg-white">
+            <Back size={20} />
+          </Link>
+          <span className="truncate px-2 text-[17px] font-bold">{title}</span>
+          <span className="w-11" />
         </div>
-      ))}
-      <p className="text-sm text-muted">
-        Written from CDC guidance: be specific, state it rather than ask, say what to do instead, and offer two choices. You
-        don&apos;t have to copy it. Use your own words.
-      </p>
-      <button className="btn-primary w-full sm:w-auto" onClick={onNext}>
-        I&apos;m ready to practice
-      </button>
-    </div>
+        <ol
+          className="mt-3.5 grid grid-cols-3 gap-1.5"
+          aria-label={active > 2 ? "All 3 steps done" : `Step ${active + 1} of 3, ${labels[active]}`}
+        >
+          {labels.map((l, i) => {
+            const done = i < active;
+            const now = i === active;
+            return (
+              <li key={l} className="flex flex-col gap-1.5">
+                <span className={`h-1.5 rounded-full ${done ? "bg-ink" : now ? "bg-orange" : "bg-line"}`} />
+                <span className={`flex items-center gap-1 text-[13px] ${now ? "font-extrabold" : done ? "font-semibold" : "font-medium text-muted"}`}>
+                  {done ? <Check size={13} /> : `${i + 1}`} {l}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </header>
   );
 }
 
-function ChildBubble({ text, typing = false }: { text?: string; typing?: boolean }) {
+function SamBubble({ text, typing = false }: { text?: string; typing?: boolean }) {
   return (
-    <div className="mt-3 flex items-end gap-2">
-      <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-sun-soft text-lg">
-        🧒
+    <div className="flex max-w-[86%] items-end gap-2">
+      <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange text-[15px] font-extrabold">
+        S
       </span>
-      <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-sun-soft px-4 py-2.5 text-[15px]">
-        {typing ? <span className="animate-pulse text-muted">Sam is thinking…</span> : text}
+      <div className="flex flex-col gap-1">
+        {!typing && <span className="pl-1 text-[13px] text-muted">Sam</span>}
+        {typing ? (
+          <div role="status" aria-label="Sam is typing" className="rounded-[18px] rounded-bl-md bg-peach px-[18px] py-4">
+            <TypingDots />
+          </div>
+        ) : (
+          <p className="rounded-[18px] rounded-bl-md bg-peach px-[15px] py-3 text-[17px] leading-snug">{text}</p>
+        )}
       </div>
     </div>
   );
@@ -242,21 +266,22 @@ function Chat(props: {
   age: Age;
   context: string;
   transfer: boolean;
-  description: string;
+  situation: string;
+  banner: { label: string; text: string } | null;
   msgs: Msg[];
   setMsgs: React.Dispatch<React.SetStateAction<Msg[]>>;
-  sample: string | null;
-  sampleLabel: string;
-  showScriptPeek: boolean;
+  idea: string | null;
   onFinish: () => void;
 }) {
-  const { scenarioId, age, context, transfer, description, msgs, setMsgs, sample, sampleLabel, showScriptPeek, onFinish } = props;
+  const { scenarioId, age, context, transfer, situation, banner, msgs, setMsgs, idea, onFinish } = props;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"" | "score" | "child">("");
   const [error, setError] = useState("");
+  const [showIdea, setShowIdea] = useState(false);
+  const [pending, setPending] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
-  const canSend = parentTurns < MAX_PARENT_TURNS && busy !== "child";
+  const canType = parentTurns < MAX_PARENT_TURNS;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -264,8 +289,10 @@ function Chat(props: {
 
   async function send() {
     const t = text.trim();
-    if (!t || !canSend || busy) return;
+    if (!t || !canType || busy) return;
     setError("");
+    setShowIdea(false);
+    setPending(t);
     setBusy("score");
     try {
       const res = await fetch("/api/score", {
@@ -277,11 +304,13 @@ function Chat(props: {
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Try again.");
         setBusy("");
+        setPending("");
         return;
       }
       const next: Msg[] = [...msgs, { role: "parent", text: t, card: data as Scorecard }];
       setMsgs(next);
       setText("");
+      setPending("");
       setBusy("child");
       const history = next.map((m) => ({ role: m.role === "child" ? "assistant" : "user", content: m.text }));
       const r = await fetch("/api/toddler", {
@@ -293,280 +322,356 @@ function Chat(props: {
       setMsgs((m) => [...m, { role: "child", text: reply }]);
     } catch {
       setError("Connection problem. Check your internet and try again.");
+      setPending("");
     } finally {
       setBusy("");
     }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="card">
-        <p className="text-sm text-muted">{description}</p>
-        {showScriptPeek && (
-          <details className="mt-2 text-sm">
-            <summary className="cursor-pointer text-calm">Peek at the script</summary>
-            <p className="mt-1 italic">&ldquo;{SCENARIOS[scenarioId].scripts[0]}&rdquo;</p>
-          </details>
-        )}
-        <div className="mt-2 space-y-1">
-          {msgs.map((m, i) =>
-            m.role === "child" ? (
-              <ChildBubble key={i} text={m.text} />
-            ) : (
-              <div key={i} className="mt-3 flex justify-end">
-                <div className="max-w-[80%]">
-                  <div className="rounded-2xl rounded-br-sm bg-calm px-4 py-2.5 text-[15px] text-white">{m.text}</div>
-                  {m.card && (
-                    <p className="mt-1 text-right text-xs text-muted">
-                      scored <b className={scoreTone(m.card.total).text}>{m.card.total}</b>
-                    </p>
-                  )}
-                </div>
-              </div>
-            ),
-          )}
-          {busy === "child" && <ChildBubble typing />}
-          <div ref={endRef} />
+    <div className="flex min-h-[calc(100dvh-118px)] flex-col">
+      <div className="flex flex-1 flex-col gap-3.5 py-4">
+        <div className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3.5">
+          <span className="mt-px shrink-0">
+            <ScenarioIcon id={scenarioId} size={22} />
+          </span>
+          <p className="text-[17px] font-semibold leading-snug">{situation}</p>
         </div>
-        <p className="mt-4 text-[11px] text-muted">Practice character. Real children respond differently.</p>
+
+        {banner && (
+          <div className="rounded-2xl bg-peach px-4 py-3">
+            <span className="label-caps text-ink">{banner.label}</span>
+            <p className="mt-1 text-base font-semibold leading-snug">{banner.text}</p>
+          </div>
+        )}
+
+        {msgs.map((m, i) =>
+          m.role === "child" ? (
+            <SamBubble key={i} text={m.text} />
+          ) : (
+            <div key={i} className="flex max-w-[86%] flex-col items-end gap-1 self-end">
+              <span className="pr-1 text-[13px] text-muted">You</span>
+              <p className="rounded-[18px] rounded-br-md bg-ink px-[15px] py-3 text-[17px] leading-snug text-cream">{m.text}</p>
+            </div>
+          ),
+        )}
+
+        {busy === "score" && pending && (
+          <>
+            <div className="flex max-w-[86%] flex-col items-end gap-1 self-end opacity-70">
+              <span className="pr-1 text-[13px] text-muted">You</span>
+              <p className="rounded-[18px] rounded-br-md bg-ink px-[15px] py-3 text-[17px] leading-snug text-cream">{pending}</p>
+            </div>
+            <p role="status" className="flex items-center justify-end gap-2 text-sm text-muted">
+              <Spinner /> Reading your words
+            </p>
+          </>
+        )}
+
+        {busy === "child" && (
+          <>
+            <SamBubble typing />
+            <p className="-mt-2 ml-10 text-sm text-muted">Sam is thinking about it…</p>
+          </>
+        )}
+
+        {showIdea && idea && (
+          <div className="mt-auto flex flex-col gap-2.5 rounded-2xl border border-line bg-paper px-4 py-3.5">
+            <span className="label-caps">One idea (sample)</span>
+            <p className="text-[17px] leading-relaxed">&ldquo;{idea}&rdquo;</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="btn-orange"
+                onClick={() => {
+                  setText(idea);
+                  setShowIdea(false);
+                }}
+              >
+                Use this
+              </button>
+              <button type="button" className="min-h-11 rounded-full px-3.5 text-[15px] font-semibold" onClick={() => setShowIdea(false)}>
+                Hide
+              </button>
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
       </div>
 
-      {canSend ? (
-        <div className="card space-y-3">
-          <label htmlFor="say" className="text-sm font-semibold">
-            {parentTurns === 0 ? "What would you say?" : "Sam pushed back. What do you say next?"}
-          </label>
-          <textarea
-            id="say"
-            value={text}
-            maxLength={MAX_CHARS}
-            rows={3}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Type it the way you'd really say it…"
-            className="w-full resize-none rounded-xl border border-line bg-white px-4 py-3 text-[15px] outline-none focus:border-calm"
-          />
-          <div className="flex items-center justify-between text-xs text-muted">
-            <span>{error ? <span className="text-bad">{error}</span> : "English only for now."}</span>
-            <span>
-              {text.length}/{MAX_CHARS}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-primary" onClick={send} disabled={!text.trim() || busy !== ""}>
-              {busy === "score" ? <Spinner /> : "Say it"}
-            </button>
-            {sample && parentTurns === 0 && (
-              <button className="btn-ghost" onClick={() => setText(sample)} title="Fills in a labeled sample. It runs through the real scoring.">
-                {sampleLabel} <span className="text-xs font-normal text-muted">(sample)</span>
+      <footer className="sticky bottom-0 -mx-4 border-t border-line bg-white px-4 pb-3 pt-2.5 sm:mx-0 sm:rounded-t-2xl sm:border-x">
+        {parentTurns > 0 && !busy && (
+          <button type="button" className="btn-primary mb-2.5 w-full" onClick={onFinish}>
+            See my score <Arrow size={20} />
+          </button>
+        )}
+        {canType && (
+          <>
+            <div className="flex min-h-6 items-center justify-between">
+              {idea && parentTurns === 0 && !showIdea ? (
+                <button type="button" onClick={() => setShowIdea(true)} className="h-8 text-[15px] font-semibold underline underline-offset-[3px]">
+                  Need an idea?
+                </button>
+              ) : (
+                <span className="text-[13px] text-muted">{parentTurns > 0 ? "Or answer Sam once more" : ""}</span>
+              )}
+              {text.length >= 320 && (
+                <span aria-live="polite" className={`text-[13px] font-semibold ${text.length >= 390 ? "text-ink" : "text-muted"}`}>
+                  {text.length} / {MAX_CHARS}
+                </span>
+              )}
+            </div>
+            {error && <p className="mt-1 text-sm font-semibold text-bad">{error}</p>}
+            <div className="mt-1.5 flex items-end gap-2.5">
+              <label htmlFor="reply" className="sr-only">
+                What would you say?
+              </label>
+              <textarea
+                id="reply"
+                rows={2}
+                value={text}
+                maxLength={MAX_CHARS}
+                disabled={busy !== ""}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder={busy === "child" ? "Wait for Sam…" : parentTurns === 0 ? "What would you say?" : "What do you say next?"}
+                className="max-h-32 min-h-[52px] flex-1 resize-none rounded-2xl border-[1.5px] border-field bg-cream px-3.5 py-3 text-[17px] leading-snug outline-none placeholder:text-[#6B6960] focus:border-ink disabled:border-line disabled:bg-[#F7F6EE]"
+              />
+              <button
+                type="button"
+                aria-label="Send"
+                onClick={send}
+                disabled={!text.trim() || busy !== ""}
+                className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-ink text-cream transition disabled:bg-field disabled:text-ink"
+              >
+                {busy === "score" ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-cream border-t-transparent" /> : <ArrowUp size={22} />}
               </button>
-            )}
-            {parentTurns > 0 && !busy && (
-              <button className="btn-ghost" onClick={onFinish}>
-                See my score
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex justify-end">
-          {busy ? (
-            <Spinner label="Sam is thinking…" />
-          ) : (
-            <button className="btn-primary" onClick={onFinish}>
-              See my score
-            </button>
-          )}
-        </div>
-      )}
+            </div>
+          </>
+        )}
+        <p className="mt-2 text-center text-xs text-muted">Sam is a practice character. Real children respond differently.</p>
+      </footer>
     </div>
   );
 }
 
-function AttemptScore({ attempt, onRetry }: { attempt: Attempt; onRetry: () => void }) {
-  const [turn, setTurn] = useState(() =>
-    attempt.turns.reduce((worst, t, i, arr) => (t.card.total < arr[worst].card.total ? i : worst), 0),
-  );
-  const t = attempt.turns[turn];
-  const failed = t.card.checks.filter((c) => !c.passed);
+function Collapsible({ label, children, defaultOpen = false }: { label: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="space-y-4">
-      <div className="card flex items-center gap-5">
-        <ScoreRing value={attempt.total} label={scoreTone(attempt.total).label} />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">
-            {attempt.turns.length > 1 ? "Average across your replies" : "Your first try"}
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            {failed.length
-              ? `Biggest win available: ${failed.sort((a, b) => b.maxPoints - a.maxPoints)[0].label.toLowerCase()}.`
-              : "Every check passed. Try the harder retry anyway."}
+    <section className="border-t border-line pt-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-[52px] w-full items-center justify-between px-0.5 text-base font-semibold"
+      >
+        {label}
+        <ChevronDown size={20} className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="space-y-4 pb-2 pt-1">{children}</div>}
+    </section>
+  );
+}
+
+function YourWords({ turn }: { turn: Turn }) {
+  const marks = findMarks(turn.parent, turn.card.checks);
+  const firstBad = marks.findIndex((m) => !m.good);
+  const [picked, setPicked] = useState(firstBad >= 0 ? firstBad : marks.length ? 0 : -1);
+  const m = marks[picked];
+  return (
+    <section aria-label="Your words" className="flex flex-col gap-3.5 rounded-2xl bg-white p-[18px]">
+      <span className="label-caps">Your words</span>
+      <p className="text-[19px] leading-[1.75]">
+        <Highlighted text={turn.parent} checks={turn.card.checks} picked={picked} onPick={(i) => setPicked(i)} />
+      </p>
+      {m && (
+        <div aria-live="polite" className={`flex items-start gap-2.5 rounded-xl px-3.5 py-3 ${m.good ? "bg-[#E6F1EA]" : "bg-bad-soft"}`}>
+          <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${m.good ? "bg-good-line" : "bg-red"}`} />
+          <p className="text-base leading-snug">
+            <b>{m.good ? "Helped." : "Hurt."}</b> {m.check.explanation}
           </p>
         </div>
+      )}
+      {marks.length > 0 ? <Legend hint="Tap a phrase" /> : <p className="text-sm text-muted">No phrase stood out either way. See the breakdown below.</p>}
+    </section>
+  );
+}
+
+function BiggestWin({ card }: { card: Scorecard }) {
+  const miss = biggestMiss(card);
+  if (!miss)
+    return (
+      <section className="rounded-2xl bg-good-soft p-[18px]">
+        <span className="label-caps text-good">Every check passed</span>
+        <p className="mt-2 text-[19px] font-semibold leading-snug">That&apos;s a strong reply. Try it again in a new situation.</p>
+      </section>
+    );
+  const url = CDC_URL[miss.cdcBasis];
+  return (
+    <section aria-label="Biggest win" className="flex flex-col gap-2.5 rounded-2xl bg-peach p-[18px]">
+      <span className="label-caps text-ink">Biggest win: {miss.label.toLowerCase()}</span>
+      <p className="text-[19px] font-semibold leading-snug">{FOCUS_TIPS[miss.dimension]}</p>
+      {url && (
+        <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 self-start py-1.5 text-sm font-semibold underline underline-offset-[3px]">
+          <Info size={16} /> Based on CDC guidance
+        </a>
+      )}
+    </section>
+  );
+}
+
+function AttemptScore({ attempt, onRetry }: { attempt: Attempt; onRetry: () => void }) {
+  const [turnIdx, setTurnIdx] = useState(() =>
+    attempt.turns.reduce((worst, t, i, arr) => (t.card.total < arr[worst].card.total ? i : worst), 0),
+  );
+  const t = attempt.turns[turnIdx];
+  return (
+    <div className="flex flex-col gap-[18px] py-6">
+      <div className="flex flex-col items-center gap-3.5 text-center">
+        <ScoreRing value={attempt.total} />
+        <h1 className="max-w-[320px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(t.card)}</h1>
+        {attempt.turns.length > 1 && <p className="-mt-2 text-sm text-muted">Average of your {attempt.turns.length} replies</p>}
       </div>
+
       {attempt.turns.length > 1 && (
-        <div className="flex gap-2">
+        <div className="flex justify-center gap-2" role="group" aria-label="Pick a reply">
           {attempt.turns.map((x, i) => (
-            <button key={i} className="chip" aria-pressed={turn === i} onClick={() => setTurn(i)}>
+            <button key={i} type="button" className="chip" aria-pressed={turnIdx === i} onClick={() => setTurnIdx(i)}>
               Reply {i + 1} · {x.card.total}
             </button>
           ))}
         </div>
       )}
-      <div className="card">
-        <DimensionBars card={t.card} />
-      </div>
-      <ScorecardView card={t.card} text={t.parent} />
-      <div className="sticky bottom-3 flex justify-end">
-        <button className="btn-primary shadow-lg" onClick={onRetry}>
-          Try again with what you learned
-        </button>
-      </div>
+
+      <YourWords key={turnIdx} turn={t} />
+      <BiggestWin card={t.card} />
+
+      <button type="button" className="btn-primary h-[58px] text-lg" onClick={onRetry}>
+        Try again with this tip <Arrow size={20} />
+      </button>
+
+      <Collapsible label="See full breakdown">
+        <div className="rounded-2xl bg-white p-[18px]">
+          <DimensionBars card={t.card} />
+        </div>
+        <CheckList card={t.card} />
+      </Collapsible>
     </div>
   );
 }
 
-function Delta({ from, to }: { from: number; to: number }) {
-  const d = to - from;
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-sm font-semibold ${d > 0 ? "bg-good-soft text-good" : d < 0 ? "bg-bad-soft text-bad" : "bg-cream text-muted"}`}>
-      {d > 0 ? "+" : ""}
-      {d}
-    </span>
-  );
-}
-
-function SideBySide({ a, b, la, lb }: { a: Attempt; b: Attempt; la: string; lb: string }) {
+function Compare({ a, b, scenarioId, onTransfer }: { a: Attempt; b: Attempt; scenarioId: ScenarioId; onTransfer: () => void }) {
   const ta = a.turns[0];
   const tb = b.turns[0];
-  const gained = tb.card.checks.filter((c) => c.passed && !ta.card.checks.find((x) => x.id === c.id)?.passed);
-  const lost = tb.card.checks.filter((c) => !c.passed && ta.card.checks.find((x) => x.id === c.id)?.passed);
+  const d = b.total - a.total;
+  const gained = tb.card.checks
+    .filter((c) => c.passed && !ta.card.checks.find((x) => x.id === c.id)?.passed)
+    .sort((x, y) => y.maxPoints - x.maxPoints);
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {[
-          [la, ta, a.total],
-          [lb, tb, b.total],
-        ].map(([label, t, total]) => (
-          <div key={label as string} className="card">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-muted">{label as string}</p>
-              <span className={`text-2xl font-bold ${scoreTone(total as number).text}`}>{total as number}</span>
-            </div>
-            <p className="mt-2 text-[15px] leading-relaxed">
-              <Highlighted text={(t as Turn).parent} checks={(t as Turn).card.checks} />
-            </p>
-          </div>
-        ))}
+    <div className="flex flex-col gap-[18px] py-6">
+      <div className="flex flex-col items-center gap-3.5 text-center">
+        <ScoreRing value={b.total} />
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-base font-extrabold ${
+            d > 0 ? "bg-good-soft text-good" : d < 0 ? "bg-bad-soft text-bad" : "bg-white text-ink"
+          }`}
+        >
+          {d > 0 && <ArrowUp size={16} />}
+          {d === 0 ? "Same as your first try" : `${d > 0 ? "+" : "−"}${Math.abs(d)} from your first try`}
+        </span>
+        <h1 className="max-w-[320px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(tb.card)}</h1>
       </div>
-      {(gained.length > 0 || lost.length > 0) && (
-        <div className="card">
-          <p className="font-semibold">The words that made the difference</p>
-          <ul className="mt-2 space-y-2 text-sm">
-            {gained.map((c) => (
-              <li key={c.id} className="flex gap-2">
-                <span className="w-9 shrink-0 font-semibold text-good">+{c.maxPoints}</span>
-                <span>
-                  <b>{c.label}</b>
-                  {c.evidence && <span className="italic text-good"> &ldquo;{c.evidence}&rdquo;</span>}
-                </span>
-              </li>
-            ))}
-            {lost.map((c) => (
-              <li key={c.id} className="flex gap-2">
-                <span className="w-9 shrink-0 font-semibold text-bad">−{c.maxPoints}</span>
-                <span>
-                  <b>{c.label}</b>
-                  {c.evidence && <span className="italic text-bad"> &ldquo;{c.evidence}&rdquo;</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <div className="card">
-        <DimensionBars card={tb.card} compare={ta.card} />
-        <p className="mt-3 text-xs text-muted">Grey shows your earlier attempt.</p>
-      </div>
-    </div>
-  );
-}
 
-function Compare({ a, b, onTransfer, scenarioId }: { a: Attempt; b: Attempt; onTransfer: () => void; scenarioId: ScenarioId }) {
-  return (
-    <div className="space-y-4">
-      <div className="card flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted">First try → retry</p>
-          <p className="mt-1 text-3xl font-bold">
-            {a.total} → <span className={scoreTone(b.total).text}>{b.total}</span>
+      <section aria-label="Before and after" className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2 rounded-2xl border border-line bg-paper px-[18px] py-4">
+          <div className="flex items-baseline justify-between">
+            <span className="label-caps">Before</span>
+            <span className="text-xl font-extrabold text-muted">{a.total}</span>
+          </div>
+          <p className="text-[17px] leading-relaxed text-soft-ink">
+            <Highlighted text={ta.parent} checks={ta.card.checks} />
           </p>
         </div>
-        <Delta from={a.total} to={b.total} />
+        <div aria-hidden className="flex justify-center">
+          <ArrowDown size={22} />
+        </div>
+        <div className={`flex flex-col gap-2 rounded-2xl bg-white px-[18px] py-4 ${d > 0 ? "shadow-[inset_0_0_0_2px_#2E7D4F]" : ""}`}>
+          <div className="flex items-baseline justify-between">
+            <span className={`label-caps ${d > 0 ? "text-good" : ""}`}>After</span>
+            <span className={`text-xl font-extrabold ${d > 0 ? "text-good" : ""}`}>{b.total}</span>
+          </div>
+          <p className="text-[17px] leading-[1.75]">
+            <Highlighted text={tb.parent} checks={tb.card.checks} />
+          </p>
+          {gained[0] && <p className="mt-1 text-[15px] text-soft-ink">Biggest change: {gained[0].label.toLowerCase()}.</p>}
+        </div>
+      </section>
+
+      <div className="flex flex-col gap-1 rounded-2xl bg-peach px-[18px] py-4">
+        <span className="text-[17px] font-bold">Now prove it on your own</span>
+        <span className="text-base leading-snug">A new moment: {SCENARIOS[scenarioId].transfer.title.toLowerCase()}. No tips this time.</span>
       </div>
-      <SideBySide a={a} b={b} la="First try" lb="Retry" />
-      <div className="card border-calm/30 bg-calm-soft">
-        <p className="font-semibold">Now prove it to yourself</p>
-        <p className="mt-1 text-sm">
-          A new situation, <b>{SCENARIOS[scenarioId].transfer.title.toLowerCase()}</b>, with no script. This shows whether the skill
-          sticks, not just the words.
-        </p>
-        <button className="btn-primary mt-3" onClick={onTransfer}>
-          Try a new situation on my own
-        </button>
-      </div>
+
+      <button type="button" className="btn-primary h-[58px] text-lg" onClick={onTransfer}>
+        Try a new situation <Arrow size={20} />
+      </button>
+
+      <Collapsible label="See full breakdown">
+        <div className="rounded-2xl bg-white p-[18px]">
+          <DimensionBars card={tb.card} compare={ta.card} />
+          <p className="mt-3 text-xs text-muted">Grey shows your first try.</p>
+        </div>
+        <CheckList card={tb.card} />
+      </Collapsible>
     </div>
   );
 }
 
-function Done({ first, retry, transfer, scenarioId }: { first?: Attempt; retry?: Attempt; transfer: Attempt; scenarioId: ScenarioId }) {
+function Done({ first, retry, transfer }: { first?: Attempt; retry?: Attempt; transfer: Attempt }) {
+  const t = transfer.turns[0];
   return (
-    <div className="space-y-4">
-      <div className="card text-center">
-        <p className="text-sm text-muted">Your progress in one session</p>
-        <div className="mt-3 flex items-end justify-center gap-6">
-          {first && (
-            <div>
-              <ScoreRing value={first.total} size={72} />
-              <p className="mt-1 text-xs text-muted">First try</p>
-            </div>
-          )}
-          {retry && (
-            <div>
-              <ScoreRing value={retry.total} size={72} />
-              <p className="mt-1 text-xs text-muted">Retry</p>
-            </div>
-          )}
-          <div>
-            <ScoreRing value={transfer.total} size={96} />
-            <p className="mt-1 text-xs font-semibold text-calm">New situation, alone</p>
-          </div>
-        </div>
+    <div className="flex flex-col gap-[18px] py-6">
+      <div className="flex flex-col items-center gap-3.5 text-center">
+        <ScoreRing value={transfer.total} />
+        <h1 className="max-w-[340px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">You did it on your own.</h1>
         {first && (
-          <p className="mt-4 text-[15px]">
-            First attempt <b>{first.total}</b>, new situation on your own <b className={scoreTone(transfer.total).text}>{transfer.total}</b>.
+          <p className="text-[17px] text-soft-ink">
+            First try <b className="text-ink">{first.total}</b>
+            {retry && (
+              <>
+                , with the tip <b className="text-ink">{retry.total}</b>
+              </>
+            )}
+            , new situation alone <b className="text-ink">{transfer.total}</b>.
           </p>
         )}
       </div>
-      {first && <SideBySide a={first} b={transfer} la="First try" lb={SCENARIOS[scenarioId].transfer.title} />}
-      <ScorecardView card={transfer.turns[0].card} text={transfer.turns[0].parent} />
-      <div className="card border-calm/30 bg-calm-soft">
-        <p className="font-semibold">Keep it going: one short practice a day</p>
-        <p className="mt-1 text-sm">Your 7 day plan targets your weakest skill. Day 1 is free.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/progress" className="btn-primary">
-            See my plan
-          </Link>
-          <Link href="/" className="btn-ghost">
-            Practice another moment
-          </Link>
+
+      <YourWords turn={t} />
+
+      <section className="flex flex-col gap-2 rounded-2xl bg-orange p-5">
+        <span className="text-sm font-extrabold uppercase tracking-[0.04em]">Keep it going</span>
+        <h2 className="text-[24px] font-extrabold leading-tight">One short practice a day</h2>
+        <p className="text-[17px] leading-snug">Your 7 day plan targets your weakest skill. Day 1 is free.</p>
+        <Link href="/progress" className="btn-primary mt-1.5 h-14 text-lg">
+          See my plan <Arrow size={20} />
+        </Link>
+      </section>
+      <Link href="/" className="btn-ghost">
+        Practice another moment
+      </Link>
+
+      <Collapsible label="See full breakdown">
+        <div className="rounded-2xl bg-white p-[18px]">
+          <DimensionBars card={t.card} />
         </div>
-      </div>
+        <CheckList card={t.card} />
+      </Collapsible>
     </div>
   );
 }
