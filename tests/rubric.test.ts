@@ -55,6 +55,11 @@ describe("individual checks", () => {
 
   it("fails backing down", () => {
     expect(check("Okay, five more minutes then.", "no_bribe").passed).toBe(false);
+    expect(check("okay go slide", "no_bribe").passed).toBe(false);
+    expect(check("Fine, go ahead and play.", "no_bribe").passed).toBe(false);
+    expect(check("You can keep watching.", "no_bribe").passed).toBe(false);
+    expect(check("It's time to go. You can slide down one last time or walk to the car.", "no_bribe").passed).toBe(true);
+    expect(check("You can stay here with me until you feel calm.", "no_bribe").passed).toBe(true);
   });
 
   it("fails the yelling check", () => {

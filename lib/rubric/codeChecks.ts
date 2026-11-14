@@ -244,7 +244,7 @@ export function statesLimit(text: string): CodeCheck {
 }
 
 export function noBribe(text: string): CodeCheck {
-  const q = quote(text, P.BRIBE) ?? quote(text, P.BACKING_DOWN);
+  const q = quote(text, P.BRIBE) ?? quote(text, P.BACKING_DOWN) ?? quote(text, P.GIVE_PERMISSION);
   return make(
     "no_bribe",
     !q,

@@ -62,6 +62,10 @@ export const BRIBE =
 export const BACKING_DOWN =
   /\b((okay|ok|fine|alright),?\s*(just\s+)?(five|5|one|1|two|2|ten|10|three|3)\s+more\s+(minutes?|mins?|times?|slides?|turns?|shows?|episodes?)|fine,?\s*(you can|stay|whatever|do what you want)|forget it|never ?mind,? (stay|keep)|(let'?s|lets|we can|you can)\s+(play|stay)\b[^.!?]{0,30}\b(an hour|(a )?(few|five|5|ten|10|twenty|20|thirty|30) (more )?(minutes|mins|hours)|a (little|bit) (longer|more)|longer))\b/i;
 
+/** Letting the child keep doing it: "okay go slide", "go ahead and play", "you can keep watching". */
+export const GIVE_PERMISSION =
+  /\b((okay|ok|fine|alright|sure|yes|yeah)[,.!]?\s*(then\s+)?(go\s+(ahead\s+)?(and\s+)?|you can\s+(go\s+)?(and\s+)?)(slide|play|stay|swing|watch|have (it|the|your)|keep (it|playing|sliding|watching|going))|go (ahead|on),?\s*(and\s+)?(slide|play|stay|swing|watch)|you can keep (playing|sliding|watching|swinging)|(stay|play|slide) as long as you (want|like))\b/i;
+
 /** A warning sentence ("If you..., we will..."). */
 export const WARNING = /\b(if you|when you|if he|unless you)\b[^.!?]*/i;
 
