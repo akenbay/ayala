@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { MAX_SITUATION } from "@/lib/scenarios";
+import { MAX_SITUATION, parentWords } from "@/lib/scenarios";
 import { MAX_CHARS } from "@/lib/rubric/validate";
 import { detectCrisis, type Crisis } from "@/lib/safety";
 import { FREE_OWN_MOMENTS, ownMomentLocked, update, useStore } from "@/lib/storage";
@@ -53,7 +53,7 @@ export default function MomentPage() {
       return;
     }
     update((st) => {
-      st.custom = { situation: s.slice(0, MAX_SITUATION), ...(mode === "lost" && w ? { said: w.slice(0, MAX_CHARS) } : {}) };
+      st.custom = { situation: s.slice(0, MAX_SITUATION), ...(mode === "lost" && w ? { said: parentWords(w).slice(0, MAX_CHARS) } : {}) };
       st.current = "custom";
       st.lesson = null;
       st.currentPlanDay = null;

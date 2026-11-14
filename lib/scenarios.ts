@@ -215,6 +215,21 @@ export const SCENARIO_LIST: Scenario[] = Object.values(SCENARIOS).filter((s) => 
 
 export const MAX_SITUATION = 220;
 
+/**
+ * The parent's own words from "What did you actually say?", without narration around them:
+ * "I yelled: no you embarrass me" becomes "No you embarrass me". Sam should hear the words, not "I yelled".
+ */
+export function parentWords(said: string): string {
+  const t = said
+    .trim()
+    .replace(/^(so\s+|and\s+|then\s+)?(i|we)\s+(just\s+|kind of\s+|basically\s+)?(yelled|shouted|screamed|said|snapped|replied|answered)(\s+(at|to) (him|her|them|my (son|daughter|kid|child)))?(\s+back)?\s*[:,]?\s*/i, "")
+    // "I told her: ..." only when her words follow; "I told him to stop" is a report, so it stays.
+    .replace(/^(i|we)\s+told\s+(him|her|them|my (son|daughter|kid|child))\s*(:\s*|(?=["“]))/i, "")
+    .replace(/^["'“‘]+|["'”’]+$/g, "")
+    .trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : said.trim();
+}
+
 /** Cleans a parent-written situation before it goes into a prompt. */
 export function cleanSituation(text: string): string {
   return text.replace(/[<>{}]/g, "").replace(/\s+/g, " ").trim().slice(0, MAX_SITUATION);

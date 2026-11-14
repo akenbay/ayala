@@ -62,3 +62,16 @@ describe("custom opening", () => {
     expect(o.setup).toBe("");
   });
 });
+
+describe("the parent's own words", () => {
+  it("drops narration like 'I yelled' so Sam hears only the words", async () => {
+    const { parentWords } = await import("../lib/scenarios");
+    expect(parentWords("I yelled no you embarrass me")).toBe("No you embarrass me");
+    expect(parentWords("I yelled: That's it, no TV ever again!")).toBe("That's it, no TV ever again!");
+    expect(parentWords('I said "go to your room"')).toBe("Go to your room");
+    expect(parentWords("I shouted at her, stop it now")).toBe("Stop it now");
+    expect(parentWords("Stop it right now!")).toBe("Stop it right now!");
+    expect(parentWords("I told him to stop")).toBe("I told him to stop");
+    expect(parentWords('I told her "you are so annoying"')).toBe("You are so annoying");
+  });
+});
