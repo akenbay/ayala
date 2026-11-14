@@ -172,3 +172,15 @@ describe("model verdict merge rules", () => {
     expect(buildScorecard(t, "bedtime_refusal", verdicts, false).total).toBeLessThanOrEqual(10);
   });
 });
+
+describe("giving in", () => {
+  it("flags offering a long extension as backing down", async () => {
+    const { noBribe } = await import("@/lib/rubric/codeChecks");
+    expect(noBribe("I know you want to stay with her, lets play with her about an hour and then we will go").passed).toBe(false);
+    expect(noBribe("You can do one more slide, then we walk to the car.").passed).toBe(true);
+  });
+  it("the fallback toddler is happy when the parent gives in", async () => {
+    const { fallbackReply } = await import("@/lib/toddler");
+    expect(fallbackReply("leaving_playground", "Okay, five more minutes then.", 0)).toMatch(/Yay|Okay/);
+  });
+});

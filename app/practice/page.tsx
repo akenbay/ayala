@@ -62,9 +62,9 @@ const IDEAS: Record<ScenarioId, { first: string; retry: string }> = {
 };
 
 const SITUATION: Record<ScenarioId, { main: string; transfer: string }> = {
-  leaving_playground: { main: "refuses to leave the playground.", transfer: "doesn't want to leave grandma's house." },
-  bedtime_refusal: { main: "refuses to go to bed.", transfer: "won't turn off the tablet before dinner." },
-  hitting_sibling: { main: "just hit their brother over a toy truck.", transfer: "grabbed a doll from a friend." },
+  leaving_playground: { main: "is on the slide and refuses to leave the playground.", transfer: "is playing with grandma's toys and won't put on shoes to go home." },
+  bedtime_refusal: { main: "is building with blocks and refuses to go to bed.", transfer: "won't turn off a cartoon on the tablet before dinner." },
+  hitting_sibling: { main: "just hit their baby brother, who grabbed a toy truck. He's crying.", transfer: "pushed a friend at a playdate and grabbed their doll." },
 };
 
 const STRENGTH: Record<Dimension, string> = {

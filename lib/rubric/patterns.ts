@@ -60,7 +60,7 @@ export const BRIBE =
   /\bif you .{0,60}\b(i'?ll|i will|you'?ll|you will|you can|we'?ll|we will|i'?m going to) (give you|get you|buy you|have|get|let you have|let you watch|let you play)\s+(a |an |some |the |your )?(candy|treat|cookie|cookies|chocolate|ice ?cream|lollipop|sweets?|toy|new toy|present|ipad|tablet|phone|screen|tv|cartoon|show|dessert|snack|gummy|gummies)\b/i;
 
 export const BACKING_DOWN =
-  /\b((okay|ok|fine|alright),?\s*(just\s+)?(five|5|one|1|two|2|ten|10|three|3)\s+more\s+(minutes?|mins?|times?|slides?|turns?|shows?|episodes?)|fine,?\s*(you can|stay|whatever|do what you want)|forget it|never ?mind,? (stay|keep))\b/i;
+  /\b((okay|ok|fine|alright),?\s*(just\s+)?(five|5|one|1|two|2|ten|10|three|3)\s+more\s+(minutes?|mins?|times?|slides?|turns?|shows?|episodes?)|fine,?\s*(you can|stay|whatever|do what you want)|forget it|never ?mind,? (stay|keep)|(let'?s|lets|we can|you can)\s+(play|stay)\b[^.!?]{0,30}\b(an hour|(a )?(few|five|5|ten|10|twenty|20|thirty|30) (more )?(minutes|mins|hours)|a (little|bit) (longer|more)|longer))\b/i;
 
 /** A warning sentence ("If you..., we will..."). */
 export const WARNING = /\b(if you|when you|if he|unless you)\b[^.!?]*/i;
