@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { SCENARIOS, describe, type ScenarioId } from "@/lib/scenarios";
 import type { CheckResult, Dimension, Scorecard } from "@/lib/rubric/types";
 import { MAX_CHARS } from "@/lib/rubric/validate";
@@ -29,6 +29,7 @@ import {
   TypingDots,
   findMarks,
 } from "@/components/ui";
+import { codeCoach, type Coach } from "@/lib/coach";
 import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
 import { Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 
@@ -116,6 +117,7 @@ export default function PracticePage() {
   const [kind, setKind] = useState<AttemptKind>("first");
   const [msgs, setMsgs] = useState<Msg[]>([{ role: "child", text: "" }]);
   const [results, setResults] = useState<Partial<Record<AttemptKind, Attempt>>>({});
+  const [coaches, setCoaches] = useState<Partial<Record<AttemptKind, Coach | "loading">>>({});
 
   useEffect(() => {
     if (!store) return;
@@ -154,7 +156,12 @@ export default function PracticePage() {
     shown.forEach((m, i) => {
       if (m.role === "parent" && m.card) {
         const next = shown[i + 1];
-        turns.push({ parent: m.text, child: next?.role === "child" ? next.text : null, card: m.card });
+        turns.push({
+          parent: m.text,
+          child: next?.role === "child" ? next.text : null,
+          card: m.card,
+          ...(next?.role === "child" && next.state ? { state: next.state } : {}),
+        });
       }
     });
     if (!turns.length) return;
@@ -183,6 +190,26 @@ export default function PracticePage() {
     });
     setStep(kind === "first" ? "score" : kind === "retry" ? "compare" : "done");
     window.scrollTo({ top: 0 });
+    loadCoach(kind, turns);
+  }
+
+  /** Asks the coach to read the whole conversation. Falls back to the code coach in the browser. */
+  async function loadCoach(k: AttemptKind, turns: Turn[]) {
+    const input = { scenarioId, transfer: k === "transfer", age, turns };
+    setCoaches((c) => ({ ...c, [k]: "loading" }));
+    let result: Coach;
+    try {
+      const r = await fetch("/api/coach", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      result = (await r.json()) as Coach;
+    } catch {
+      result = codeCoach(input);
+    }
+    setCoaches((c) => ({ ...c, [k]: result }));
   }
 
   if (!ready)
@@ -193,6 +220,7 @@ export default function PracticePage() {
     );
 
   const tip = results.first ? biggestMiss(results.first.turns[0].card) : null;
+  const firstCoach = typeof coaches.first === "object" ? coaches.first : null;
 
   return (
     <div className="-mx-5 flex min-h-[100dvh] flex-col">
@@ -208,7 +236,14 @@ export default function PracticePage() {
             transfer={transfer}
             situation={`Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`}
             banner={
-              kind === "retry" && tip
+              kind === "retry" && firstCoach
+                ? {
+                    label: "Your tip",
+                    text: firstCoach.change.quote
+                      ? `Instead of "${firstCoach.change.quote}": ${firstCoach.change.why.charAt(0).toLowerCase()}${firstCoach.change.why.slice(1)}`
+                      : firstCoach.change.why,
+                  }
+                : kind === "retry" && tip
                 ? { label: "Your tip", text: FOCUS_TIPS[tip.dimension] }
                 : transfer
                   ? { label: "On your own", text: "A new moment. No tips this time." }
@@ -216,18 +251,25 @@ export default function PracticePage() {
             }
             msgs={shown}
             setMsgs={setMsgs}
-            idea={kind === "first" ? IDEAS[scenarioId].first : kind === "retry" ? IDEAS[scenarioId].retry : null}
+            idea={
+              kind === "first" ? IDEAS[scenarioId].first : kind === "retry" ? (firstCoach?.rewrite?.text ?? IDEAS[scenarioId].retry) : null
+            }
+            ideaLabel={kind === "retry" && firstCoach?.rewrite ? "Your words, improved" : "One idea (sample)"}
             onFinish={finishAttempt}
           />
         )}
 
-        {step === "score" && results.first && <AttemptScore attempt={results.first} onRetry={() => startChat("retry")} />}
-
-        {step === "compare" && results.first && results.retry && (
-          <Compare a={results.first} b={results.retry} scenarioId={scenarioId} onTransfer={() => startChat("transfer")} />
+        {step === "score" && results.first && (
+          <AttemptScore attempt={results.first} coach={coaches.first} onRetry={() => startChat("retry")} />
         )}
 
-        {step === "done" && results.transfer && <Done first={results.first} retry={results.retry} transfer={results.transfer} />}
+        {step === "compare" && results.first && results.retry && (
+          <Compare a={results.first} b={results.retry} coach={coaches.retry} scenarioId={scenarioId} onTransfer={() => startChat("transfer")} />
+        )}
+
+        {step === "done" && results.transfer && (
+          <Done first={results.first} retry={results.retry} transfer={results.transfer} coach={coaches.transfer} />
+        )}
       </div>
     </div>
   );
@@ -318,9 +360,10 @@ function Chat(props: {
   msgs: Msg[];
   setMsgs: React.Dispatch<React.SetStateAction<Msg[]>>;
   idea: string | null;
+  ideaLabel: string;
   onFinish: () => void;
 }) {
-  const { scenarioId, age, context, transfer, situation, banner, msgs, setMsgs, idea, onFinish } = props;
+  const { scenarioId, age, context, transfer, situation, banner, msgs, setMsgs, idea, ideaLabel, onFinish } = props;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"" | "score" | "child">("");
   const [error, setError] = useState("");
@@ -438,7 +481,7 @@ function Chat(props: {
 
         {showIdea && idea && (
           <div className="mt-auto flex flex-col gap-2.5 rounded-2xl border border-line bg-paper px-4 py-3.5">
-            <span className="label-caps">One idea (sample)</span>
+            <span className="label-caps">{ideaLabel}</span>
             <p className="text-[17px] leading-relaxed">&ldquo;{idea}&rdquo;</p>
             <div className="flex gap-2">
               <button
@@ -626,11 +669,94 @@ function BiggestWin({ card }: { card: Scorecard }) {
   );
 }
 
-function AttemptScore({ attempt, onRetry }: { attempt: Attempt; onRetry: () => void }) {
+/** Shows the rewrite with the words the parent didn't say highlighted, so the change is easy to see. */
+function DiffText({ from, to }: { from: string; to: string }) {
+  const norm = (w: string) => w.toLowerCase().replace(/[^a-z']/g, "");
+  const had = new Set(from.split(/\s+/).map(norm).filter(Boolean));
+  const tokens = to.split(/(\s+)/);
+  return (
+    <>
+      {tokens.map((tok, i) =>
+        /^\s+$/.test(tok) || had.has(norm(tok)) ? (
+          <Fragment key={i}>{tok}</Fragment>
+        ) : (
+          <mark key={i} className="good">
+            {tok}
+          </mark>
+        ),
+      )}
+    </>
+  );
+}
+
+function CoachLoading() {
+  return (
+    <section role="status" aria-label="Reading your conversation" className="flex flex-col gap-3 rounded-2xl bg-white p-[18px]">
+      <span className="label-caps">Reading your conversation</span>
+      <span className="shimmer h-3 w-[90%] rounded-full bg-track" />
+      <span className="shimmer h-3 w-[70%] rounded-full bg-track" style={{ animationDelay: "0.2s" }} />
+      <span className="shimmer h-3 w-[80%] rounded-full bg-track" style={{ animationDelay: "0.4s" }} />
+    </section>
+  );
+}
+
+/** What happened, what to keep and what to change: all about this parent's own words. */
+function CoachNotes({ coach, showChange = true }: { coach: Coach; showChange?: boolean }) {
+  return (
+    <section aria-label="Your coach" className="flex flex-col gap-4 rounded-2xl bg-white p-[18px]">
+      <div>
+        <span className="label-caps">What happened</span>
+        <p className="mt-1.5 text-[18px] font-semibold leading-snug">{coach.summary}</p>
+      </div>
+      {coach.keep && (
+        <div className="flex gap-3">
+          <span aria-hidden className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-good-line" />
+          <p className="text-base leading-snug">
+            <b>Keep</b> <span className="rounded bg-good-soft px-1">&ldquo;{coach.keep.quote}&rdquo;</span> {coach.keep.why}
+          </p>
+        </div>
+      )}
+      {showChange && (
+        <div className="flex gap-3">
+          <span aria-hidden className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-red" />
+          <p className="text-base leading-snug">
+            <b>Change</b>{" "}
+            {coach.change.quote && (
+              <span className="underline decoration-red decoration-wavy decoration-2 underline-offset-4">&ldquo;{coach.change.quote}&rdquo;</span>
+            )}{" "}
+            {coach.change.why}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Improved({ rewrite }: { rewrite: NonNullable<Coach["rewrite"]> }) {
+  return (
+    <section aria-label="Your words, improved" className="flex flex-col gap-2.5 rounded-2xl bg-peach p-[18px]">
+      <span className="label-caps text-ink">Your words, improved</span>
+      <p className="text-[15px] text-soft-ink">
+        You said: <span className="italic">&ldquo;{rewrite.from}&rdquo;</span>
+      </p>
+      <p className="text-[19px] font-semibold leading-relaxed">
+        &ldquo;
+        <DiffText from={rewrite.from} to={rewrite.text} />
+        &rdquo;
+      </p>
+      <p className="text-sm text-soft-ink">
+        Highlighted words are new. Same checks: {rewrite.before} → <b className="text-ink">{rewrite.after}</b>.
+      </p>
+    </section>
+  );
+}
+
+function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: Coach | "loading"; onRetry: () => void }) {
   const [turnIdx, setTurnIdx] = useState(() =>
     attempt.turns.reduce((worst, t, i, arr) => (t.card.total < arr[worst].card.total ? i : worst), 0),
   );
   const t = attempt.turns[turnIdx];
+  const c = typeof coach === "object" ? coach : null;
   return (
     <div className="flex flex-col gap-[18px] py-6">
       <div className="flex flex-col items-center gap-3.5 text-center">
@@ -640,24 +766,24 @@ function AttemptScore({ attempt, onRetry }: { attempt: Attempt; onRetry: () => v
         {attempt.turns.length > 1 && <p className="-mt-2 text-sm text-muted">Average of your {attempt.turns.length} replies</p>}
       </div>
 
-      {attempt.turns.length > 1 && (
-        <div className="flex justify-center gap-2" role="group" aria-label="Pick a reply">
-          {attempt.turns.map((x, i) => (
-            <button key={i} type="button" className="chip" aria-pressed={turnIdx === i} onClick={() => setTurnIdx(i)}>
-              Reply {i + 1} · {x.card.total}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <YourWords key={turnIdx} turn={t} />
-      <BiggestWin card={t.card} />
+      {c ? <CoachNotes coach={c} /> : coach === "loading" ? <CoachLoading /> : <BiggestWin card={t.card} />}
+      {c?.rewrite && <Improved rewrite={c.rewrite} />}
 
       <button type="button" className="btn-primary h-[58px] text-lg" onClick={onRetry}>
-        Try again with this tip <Arrow size={20} />
+        Try again in your own words <Arrow size={20} />
       </button>
 
-      <Collapsible label="See full breakdown">
+      <Collapsible label="See every phrase and check">
+        {attempt.turns.length > 1 && (
+          <div className="flex justify-center gap-2" role="group" aria-label="Pick a reply">
+            {attempt.turns.map((x, i) => (
+              <button key={i} type="button" className="chip" aria-pressed={turnIdx === i} onClick={() => setTurnIdx(i)}>
+                Reply {i + 1} · {x.card.total}
+              </button>
+            ))}
+          </div>
+        )}
+        <YourWords key={turnIdx} turn={t} />
         <div className="rounded-2xl bg-white p-[18px]">
           <DimensionBars card={t.card} />
         </div>
@@ -667,7 +793,19 @@ function AttemptScore({ attempt, onRetry }: { attempt: Attempt; onRetry: () => v
   );
 }
 
-function Compare({ a, b, scenarioId, onTransfer }: { a: Attempt; b: Attempt; scenarioId: ScenarioId; onTransfer: () => void }) {
+function Compare({
+  a,
+  b,
+  coach,
+  scenarioId,
+  onTransfer,
+}: {
+  a: Attempt;
+  b: Attempt;
+  coach?: Coach | "loading";
+  scenarioId: ScenarioId;
+  onTransfer: () => void;
+}) {
   const ta = a.turns[0];
   const tb = b.turns[0];
   const d = b.total - a.total;
@@ -715,6 +853,8 @@ function Compare({ a, b, scenarioId, onTransfer }: { a: Attempt; b: Attempt; sce
         </div>
       </section>
 
+      {typeof coach === "object" ? <CoachNotes coach={coach} showChange={b.total < 85} /> : coach === "loading" ? <CoachLoading /> : null}
+
       <div className="flex flex-col gap-1 rounded-2xl bg-peach px-[18px] py-4">
         <span className="text-[17px] font-bold">Now prove it on your own</span>
         <span className="text-base leading-snug">A new moment: {SCENARIOS[scenarioId].transfer.title.toLowerCase()}. No tips this time.</span>
@@ -735,7 +875,7 @@ function Compare({ a, b, scenarioId, onTransfer }: { a: Attempt; b: Attempt; sce
   );
 }
 
-function Done({ first, retry, transfer }: { first?: Attempt; retry?: Attempt; transfer: Attempt }) {
+function Done({ first, retry, transfer, coach }: { first?: Attempt; retry?: Attempt; transfer: Attempt; coach?: Coach | "loading" }) {
   const t = transfer.turns[0];
   return (
     <div className="flex flex-col gap-[18px] py-6">
@@ -758,7 +898,8 @@ function Done({ first, retry, transfer }: { first?: Attempt; retry?: Attempt; tr
         )}
       </div>
 
-      <YourWords turn={t} />
+      {typeof coach === "object" ? <CoachNotes coach={coach} showChange={transfer.total < 85} /> : coach === "loading" ? <CoachLoading /> : <YourWords turn={t} />}
+      {typeof coach === "object" && coach.rewrite && transfer.total < 85 && <Improved rewrite={coach.rewrite} />}
 
       <section className="flex flex-col gap-2 rounded-2xl bg-orange p-5">
         <span className="text-sm font-extrabold uppercase tracking-[0.04em]">Keep it going</span>

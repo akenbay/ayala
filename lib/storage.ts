@@ -9,7 +9,7 @@ import { buildScorecard } from "./rubric/score";
 export type Age = 2 | 3 | 4;
 export type AttemptKind = "first" | "retry" | "transfer";
 
-export type Turn = { parent: string; child: string | null; card: Scorecard };
+export type Turn = { parent: string; child: string | null; card: Scorecard; state?: "going_along" | "resisting" | "meltdown" | "gave_in" };
 
 export type Attempt = {
   id: string;

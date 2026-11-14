@@ -66,6 +66,19 @@ The test set in `tests/rubric.test.ts` covers the guide's cases: low, middle and
 
 ---
 
+## The coach: feedback on your whole conversation
+
+When you press **See my score**, `/api/coach` reads the whole practice: your replies, Sam's replies and states, and every check with its quote. It returns four things about your own words:
+
+| Part | What it says | How it stays honest |
+|---|---|---|
+| What happened | Which of your words moved Sam, and how Sam reacted | Built from Sam's code-decided states |
+| Keep | Your best phrase, quoted, and why it worked | Quote must be an exact substring of what you typed; never a phrase that also hurt |
+| Change | The phrase that hurt most (or what was missing), and why | Same quote rule; whatever caused the ending (giving in, yelling) comes first |
+| Your words, improved | Your lowest scoring reply, minimally edited; new words highlighted | Re-scored by the same checks and only shown if it scores higher |
+
+ChatGPT writes these when a key is set; each part that fails a rule is replaced by the code version, and without a key the code coach builds all four (`lib/coach.ts`). The retry then shows your own Change note as the tip, and **Need an idea?** offers your improved sentence.
+
 ## Stack
 
 - Next.js 16 (App Router) with TypeScript, Tailwind CSS 4
