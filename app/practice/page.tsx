@@ -157,32 +157,35 @@ export default function PracticePage() {
     if (scenarioId !== "custom" || !own?.situation || customOpener) return;
     let alive = true;
     (async () => {
-      let open = { scene: own.situation, setup: describe("custom", false).setup, opener: SCENARIOS.custom.childOpener, idea: null as string | null };
+      const lost = Boolean(own.said?.trim());
+      let open = { scene: own.situation, setup: lost ? "" : describe("custom", false).setup, opener: SCENARIOS.custom.childOpener, idea: null as string | null };
       try {
         const r = await fetch("/api/opener", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ age, situation: own.situation, child }),
+          body: JSON.stringify({ age, situation: own.situation, child, ...(lost ? { said: own.said } : {}) }),
         });
         const d = (await r.json()) as { scene?: string; setup?: string; opener?: string; idea?: string | null };
-        if (d.opener) open = { scene: d.scene || open.scene, setup: d.setup || open.setup, opener: d.opener, idea: d.idea ?? null };
+        if (d.opener) open = { scene: d.scene || open.scene, setup: lost ? "" : d.setup || open.setup, opener: d.opener, idea: d.idea ?? null };
       } catch {}
       if (alive) setCustomOpen(open);
     })();
     return () => {
       alive = false;
     };
-  }, [scenarioId, own?.situation, customOpener, age, child]);
+  }, [scenarioId, own?.situation, own?.said, customOpener, age, child]);
 
   const scenario = SCENARIOS[scenarioId];
   const transfer = kind === "transfer";
   const title = transfer ? scenario.transfer.title : scenario.short;
   const openerFor = (t: boolean) => (scenarioId === "custom" && !t ? (customOpener ?? "…") : describe(scenarioId, t).childOpener);
   /** The chat starts mid-moment: what the parent already said (not scored), then Sam's refusal. */
-  const openingFor = (t: boolean): Msg[] => [
-    { role: "parent", text: scenarioId === "custom" && !t && customOpen ? customOpen.setup : describe(scenarioId, t).setup, setup: true },
-    { role: "child", text: openerFor(t) },
-  ];
+  const openingFor = (t: boolean): Msg[] => {
+    const setup = scenarioId === "custom" && !t && customOpen ? customOpen.setup : describe(scenarioId, t).setup;
+    // "Today I lost it" has no made-up earlier line: the parent's real words are the first reply.
+    const lostFirst = scenarioId === "custom" && !t && Boolean(own?.said?.trim());
+    return [...(setup && !lostFirst ? [{ role: "parent" as const, text: setup, setup: true }] : []), { role: "child", text: openerFor(t) }];
+  };
   // The opening depends on the scenario, which is known only after the store loads.
   const shown = msgs.length === 0 ? openingFor(false) : msgs;
   // For the parent's own moment, Sam's first line is written on the server; hold replies until it arrives.

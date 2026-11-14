@@ -39,4 +39,26 @@ describe("custom opening", () => {
     expect(o.ai).toBe(false);
     expect(o.scene).toBe("My kid does not play sports");
   });
+
+  it("Today I lost it: no made-up earlier line, the parent's words go to the model, details stay theirs", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    const fetchMock = vi.fn(async (...args: unknown[]) => args.length >= 0 &&
+      reply(JSON.stringify({ scene: "Your 3 year old says you embarrass her.", setup: "Please stop shouting.", opener: "You embarrass me!", idea: "That felt bad. I'm sorry I yelled." })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const o = await customOpening({ age: 3, situation: "my child said i embarrass her", said: "No, you embarrass me!" });
+    expect(o.setup).toBe("");
+    expect(o.opener).toBe("You embarrass me!");
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit | undefined)?.body));
+    const sent = JSON.stringify(body.messages);
+    expect(sent).toContain("No, you embarrass me!");
+    expect(sent).toMatch(/ONLY what the parent wrote/);
+  });
+
+  it("Today I lost it falls back without an earlier line when there is no model", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const o = await customOpening({ age: 3, situation: "my child said i embarrass her", said: "No, you embarrass me!" });
+    expect(o.setup).toBe("");
+  });
 });

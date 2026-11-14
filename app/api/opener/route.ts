@@ -6,6 +6,7 @@ import { clientIp, json, rateLimit } from "@/lib/server";
 const Body = z.object({
   age: z.union([z.literal(2), z.literal(3), z.literal(4)]),
   situation: z.string().min(5).max(400),
+  said: z.string().max(400).optional(),
   child: z
     .object({
       sex: z.enum(["boy", "girl", "unsaid"]).optional(),
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   } catch {
     return json({ error: "Invalid request." }, 400);
   }
-  const crisis = detectCrisis(body.situation);
+  const crisis = detectCrisis(`${body.situation} ${body.said ?? ""}`);
   if (crisis) return json({ crisis: crisis.kind });
   const o = await customOpening(body);
   return json({ ...o });
