@@ -727,7 +727,7 @@ function Chat(props: {
                   }
                 }}
                 placeholder={busy === "child" ? "Wait for Sam…" : parentTurns === 0 ? "What would you say?" : "What do you say next?"}
-                className="max-h-32 min-h-[52px] flex-1 resize-none rounded-2xl border-[1.5px] border-field bg-cream px-3.5 py-3 text-[17px] leading-snug outline-none placeholder:text-[#6B6960] focus:border-ink disabled:border-line disabled:bg-[#F7F6EE]"
+                className="max-h-32 min-h-[52px] flex-1 resize-none rounded-2xl border-[1.5px] border-field bg-cream px-3.5 py-3 text-[17px] leading-snug outline-none placeholder:text-muted focus:border-ink disabled:border-line disabled:bg-peach-soft"
               />
               {voice.supported && (
                 <button
@@ -816,7 +816,7 @@ function YourWords({ turn }: { turn: Turn }) {
         <Highlighted text={turn.parent} checks={turn.card.checks} picked={picked} onPick={(i) => setPicked(i)} />
       </p>
       {m && (
-        <div aria-live="polite" className={`flex items-start gap-2.5 rounded-xl px-3.5 py-3 ${m.good ? "bg-[#E6F1EA]" : "bg-bad-soft"}`}>
+        <div aria-live="polite" className={`flex items-start gap-2.5 rounded-xl px-3.5 py-3 ${m.good ? "bg-good-soft" : "bg-bad-soft"}`}>
           <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${m.good ? "bg-good-line" : "bg-red"}`} />
           <p className="text-base leading-snug">
             <b>{m.good ? "Helped." : "Hurt."}</b> {m.check.explanation}

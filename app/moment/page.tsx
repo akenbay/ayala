@@ -103,7 +103,7 @@ export default function MomentPage() {
             setError("");
           }}
           placeholder={EXAMPLES[0]}
-          className="resize-none rounded-2xl border-[1.5px] border-field bg-white px-4 py-3 text-[17px] leading-snug outline-none placeholder:text-[#6B6960] focus:border-ink"
+          className="resize-none rounded-2xl border-[1.5px] border-field bg-white px-4 py-3 text-[17px] leading-snug outline-none placeholder:text-muted focus:border-ink"
         />
         <div className="flex flex-wrap gap-2">
           {EXAMPLES.slice(1).map((ex) => (
@@ -127,7 +127,7 @@ export default function MomentPage() {
             maxLength={MAX_CHARS}
             onChange={(e) => setSaid(e.target.value)}
             placeholder="I yelled: That's it, no TV ever again!"
-            className="resize-none rounded-2xl border-[1.5px] border-field bg-white px-4 py-3 text-[17px] leading-snug outline-none placeholder:text-[#6B6960] focus:border-ink"
+            className="resize-none rounded-2xl border-[1.5px] border-field bg-white px-4 py-3 text-[17px] leading-snug outline-none placeholder:text-muted focus:border-ink"
           />
         </div>
       )}

@@ -51,7 +51,7 @@ export function PlanPicker({ onUnlocked }: { onUnlocked?: () => void }) {
         return (
           <label
             key={id}
-            className={`flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] px-4 py-3.5 ${on ? "border-ink bg-white shadow-[0_0_0_1px_#000]" : "border-field bg-cream"}`}
+            className={`flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] px-4 py-3.5 ${on ? "border-ink bg-white shadow-[0_0_0_1px_#1C1608]" : "border-field bg-cream"}`}
           >
             <input type="radio" name="paywall-plan" value={id} checked={on} onChange={() => setPlan(id)} className="h-5 w-5 accent-black" />
             <span className="flex-1">

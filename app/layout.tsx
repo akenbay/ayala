@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Parenting advice is easy to read. Practice what to say before the hardest five minutes of your day.",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#F2F0E4" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#FFFAF0" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

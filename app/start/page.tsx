@@ -143,7 +143,7 @@ export default function StartPage() {
   if (i === 3 && !sawBreak)
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-5 py-10 text-center">
-        <p className="text-[64px] font-extrabold leading-none tracking-[-0.03em] text-deep">83.7%</p>
+        <p className="text-[64px] font-extrabold leading-none tracking-[-0.03em] text-ink">83.7%</p>
         <h1 className="text-[26px] font-extrabold leading-tight">of preschoolers have tantrums at least sometimes.</h1>
         <p className="text-[17px] text-soft-ink">
           You&apos;re not doing it wrong. Toddlers test limits, and the words you use in that moment can be learned like any skill.
@@ -271,7 +271,7 @@ export default function StartPage() {
                 isMulti ? setMulti((m) => (m.includes(String(o.value)) ? m.filter((x) => x !== o.value) : [...m, String(o.value)])) : pick(o.value)
               }
               className={`flex min-h-14 items-center justify-between rounded-2xl px-5 text-left text-[17px] font-semibold transition ${
-                on ? "bg-ink text-cream" : "bg-white hover:shadow-[0_0_0_2px_#000]"
+                on ? "bg-ink text-cream" : "bg-white hover:shadow-[0_0_0_2px_#1C1608]"
               }`}
             >
               {o.label}

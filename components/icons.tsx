@@ -23,8 +23,8 @@ function Svg({ size = 20, className, stroke = "currentColor", width = 2, childre
 
 export const Logo = ({ size = 26 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">
-    <circle cx="13" cy="13" r="12" fill="#F28705" />
-    <path d="M8 15c1.5 2 3 3 5 3s3.5-1 5-3" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="13" cy="13" r="12" fill="#FFB41D" />
+    <path d="M8 15c1.5 2 3 3 5 3s3.5-1 5-3" fill="none" stroke="#1C1608" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 

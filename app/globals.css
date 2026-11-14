@@ -1,30 +1,33 @@
 @import "tailwindcss";
 
 /* Ayala palette (Clownfish): cream, three oranges, black. Green is functional only ("helped"). */
+/* Ayala palette (Amber): Floral White, Papaya Whip, Morning Butter, Sunflower Gold, Amber Flame.
+   Green and red stay as functional colors only ("helped" and "hurt"). */
 @theme {
-  --color-cream: #f2f0e4;
-  --color-paper: #faf9f3;
-  --color-ink: #000000;
-  --color-muted: #5e5c55;
-  --color-soft-ink: #3b3a36;
-  --color-line: #e3e0d2;
-  --color-field: #cfcbb8;
-  --color-track: #e8e5d6;
-  --color-orange: #f28705;
-  --color-deep: #f25c05;
-  --color-red: #f24405;
-  --color-peach: #fbe2bf;
-  --color-peach-soft: #fdf0dc;
+  --color-cream: #fffaf0; /* Floral White: page background */
+  --color-paper: #fffdf8;
+  --color-ink: #1c1608; /* warm near-black for text and primary buttons */
+  --color-muted: #6b5f45;
+  --color-soft-ink: #463c27;
+  --color-line: #f3e4c3;
+  --color-field: #e9d3a1;
+  --color-track: #f6ead0;
+  --color-orange: #ffb41d; /* Amber Flame: main accent */
+  --color-deep: #ffc146; /* Sunflower Gold */
+  --color-butter: #ffd581; /* Morning Butter */
+  --color-red: #e5484d;
+  --color-peach: #ffeecd; /* Papaya Whip */
+  --color-peach-soft: #fff4dc;
   /* Legacy names kept so every page reskins from one place. */
-  --color-calm: #000000;
-  --color-calm-soft: #fbe2bf;
-  --color-sun: #f28705;
-  --color-sun-soft: #fbe2bf;
+  --color-calm: #1c1608;
+  --color-calm-soft: #ffeecd;
+  --color-sun: #ffb41d;
+  --color-sun-soft: #ffeecd;
   --color-good: #1f5a37;
   --color-good-line: #2e7d4f;
-  --color-good-soft: #d9ebdf;
-  --color-bad: #a8360a;
-  --color-bad-soft: #fde6dc;
+  --color-good-soft: #dcefe2;
+  --color-bad: #b42318;
+  --color-bad-soft: #fde8e4;
   --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -43,7 +46,7 @@ button:focus-visible,
 textarea:focus-visible,
 input:focus-visible,
 summary:focus-visible {
-  outline: 3px solid var(--color-deep);
+  outline: 3px solid var(--color-ink);
   outline-offset: 2px;
 }
 
@@ -59,7 +62,7 @@ summary:focus-visible {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-bold text-cream transition hover:bg-[#222] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-bold text-cream transition hover:bg-[#3a2f17] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
 }
 @utility btn-orange {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-orange px-5 py-2.5 text-[15px] font-bold text-ink transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50;
@@ -93,7 +96,7 @@ button.mark-bad {
 }
 button.mark-good[aria-pressed="true"],
 button.mark-bad[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px #000;
+  box-shadow: 0 0 0 2px var(--color-ink);
 }
 
 @keyframes ayala-dot {

@@ -92,7 +92,7 @@ export default function PricingPage() {
         </p>
       )}
 
-      <div className="card shadow-[inset_0_0_0_2px_#000]">
+      <div className="card shadow-[inset_0_0_0_2px_#1C1608]">
         <fieldset>
           <legend className="text-sm font-semibold text-muted">Choose your plan</legend>
           <div className="mt-2 grid gap-2.5">
@@ -102,7 +102,7 @@ export default function PricingPage() {
               return (
                 <label
                   key={id}
-                  className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] px-4 py-3.5 ${on ? "border-ink bg-white shadow-[0_0_0_1px_#000]" : "border-field bg-cream"}`}
+                  className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] px-4 py-3.5 ${on ? "border-ink bg-white shadow-[0_0_0_1px_#1C1608]" : "border-field bg-cream"}`}
                 >
                   <input type="radio" name="plan" value={id} checked={on} onChange={() => setPlan(id)} className="h-5 w-5 accent-black" />
                   <span className="flex-1">

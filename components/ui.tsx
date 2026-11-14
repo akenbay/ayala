@@ -8,8 +8,8 @@ export const CDC_URL: Record<string, string> = Object.fromEntries(Object.values(
 
 export function scoreTone(n: number): { text: string; bg: string; ring: string; label: string } {
   if (n >= 80) return { text: "text-good", bg: "bg-good-soft", ring: "#2E7D4F", label: "Strong" };
-  if (n >= 55) return { text: "text-ink", bg: "bg-peach", ring: "#F28705", label: "Getting there" };
-  return { text: "text-bad", bg: "bg-bad-soft", ring: "#F24405", label: "Room to grow" };
+  if (n >= 55) return { text: "text-ink", bg: "bg-peach", ring: "#FFB41D", label: "Getting there" };
+  return { text: "text-bad", bg: "bg-bad-soft", ring: "#E5484D", label: "Room to grow" };
 }
 
 export function ScoreRing({ value, size = 168, sub = "out of 100" }: { value: number; size?: number; sub?: string | null }) {
@@ -21,7 +21,7 @@ export function ScoreRing({ value, size = 168, sub = "out of 100" }: { value: nu
   return (
     <div className="relative inline-grid place-items-center" style={{ width: size, height: size }} role="img" aria-label={`Score ${value} out of 100`}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="#E3E0D2" strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#F3E4C3" strokeWidth={stroke} fill="none" />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -76,7 +76,7 @@ export function DimensionBars({ card, compare }: { card: Pick<Scorecard, "byDime
             <div className="relative h-2.5 overflow-hidden rounded-full bg-track" role="img" aria-label={`${DIMENSION_LABELS[d]}: ${p} out of 100`}>
               {before !== null && <div className="absolute h-full rounded-full bg-field" style={{ width: `${before}%` }} />}
               <div
-                className={`absolute h-full rounded-full transition-all duration-500 ${weak && !compare ? "bg-deep" : "bg-ink"}`}
+                className={`absolute h-full rounded-full transition-all duration-500 ${weak && !compare ? "bg-orange" : "bg-ink"}`}
                 style={{ width: `${p}%` }}
               />
             </div>

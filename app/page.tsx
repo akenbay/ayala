@@ -60,7 +60,7 @@ export default function Home() {
               key={s.id}
               type="button"
               onClick={() => start(s.id)}
-              className="flex min-h-[92px] items-center gap-4 rounded-2xl bg-white p-4 pl-[18px] text-left transition hover:shadow-[0_0_0_2px_#000] sm:min-h-[220px] sm:flex-col sm:items-start sm:p-6"
+              className="flex min-h-[92px] items-center gap-4 rounded-2xl bg-white p-4 pl-[18px] text-left transition hover:shadow-[0_0_0_2px_#1C1608] sm:min-h-[220px] sm:flex-col sm:items-start sm:p-6"
             >
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-peach sm:h-16 sm:w-16">
                 <ScenarioIcon id={s.id} />

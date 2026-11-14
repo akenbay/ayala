@@ -22,7 +22,7 @@ function Sparkline({ values }: { values: number[] }) {
       <polyline
         points={pts.map((p) => p.join(",")).join(" ")}
         fill="none"
-        stroke="#000"
+        stroke="#1C1608"
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -238,8 +238,8 @@ export default function ProgressPage() {
                   <span className="font-extrabold">{DIMENSION_LABELS[d]}</span>
                   <span className="rounded-full bg-ink px-2.5 py-0.5 text-[13px] font-extrabold text-cream">Practice next</span>
                 </div>
-                <div role="img" aria-label={`${DIMENSION_LABELS[d]} ${avg} of 100, your weakest skill`} className="h-2 rounded-full bg-[#F2E0C4]">
-                  <div className="h-2 rounded-full bg-deep" style={{ width: `${avg}%` }} />
+                <div role="img" aria-label={`${DIMENSION_LABELS[d]} ${avg} of 100, your weakest skill`} className="h-2 rounded-full bg-butter/50">
+                  <div className="h-2 rounded-full bg-orange" style={{ width: `${avg}%` }} />
                 </div>
                 <span className="text-[15px] text-soft-ink">{FOCUS_TIPS[d]}</span>
               </li>
