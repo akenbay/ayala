@@ -125,7 +125,8 @@ export default function PracticePage() {
   const sex = store?.profile?.sex;
   const temperament = store?.profile?.temperament;
   const child = useMemo(() => (sex || temperament ? { sex, temperament } : undefined), [sex, temperament]);
-  const [customOpener, setCustomOpener] = useState<string | null>(null);
+  const [customOpen, setCustomOpen] = useState<{ scene: string; setup: string; opener: string; idea: string | null } | null>(null);
+  const customOpener = customOpen?.opener ?? null;
   const allowed = Boolean(store?.current && (SCENARIOS[store.current].free || store.unlocked));
   const ready = Boolean(store) && allowed;
 
@@ -161,17 +162,17 @@ export default function PracticePage() {
     if (scenarioId !== "custom" || !own?.situation || customOpener) return;
     let alive = true;
     (async () => {
-      let line = SCENARIOS.custom.childOpener;
+      let open = { scene: own.situation, setup: describe("custom", false).setup, opener: SCENARIOS.custom.childOpener, idea: null as string | null };
       try {
         const r = await fetch("/api/opener", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ age, situation: own.situation, child }),
         });
-        const d = (await r.json()) as { opener?: string };
-        if (d.opener) line = d.opener;
+        const d = (await r.json()) as { scene?: string; setup?: string; opener?: string; idea?: string | null };
+        if (d.opener) open = { scene: d.scene || open.scene, setup: d.setup || open.setup, opener: d.opener, idea: d.idea ?? null };
       } catch {}
-      if (alive) setCustomOpener(line);
+      if (alive) setCustomOpen(open);
     })();
     return () => {
       alive = false;
@@ -184,7 +185,7 @@ export default function PracticePage() {
   const openerFor = (t: boolean) => (scenarioId === "custom" && !t ? (customOpener ?? "…") : describe(scenarioId, t).childOpener);
   /** The chat starts mid-moment: what the parent already said (not scored), then Sam's refusal. */
   const openingFor = (t: boolean): Msg[] => [
-    { role: "parent", text: describe(scenarioId, t).setup, setup: true },
+    { role: "parent", text: scenarioId === "custom" && !t && customOpen ? customOpen.setup : describe(scenarioId, t).setup, setup: true },
     { role: "child", text: openerFor(t) },
   ];
   // The opening depends on the scenario, which is known only after the store loads.
@@ -247,7 +248,7 @@ export default function PracticePage() {
 
   /** Asks the coach to read the whole conversation. Falls back to the code coach in the browser. */
   async function loadCoach(k: AttemptKind, turns: Turn[], opener?: string) {
-    const input = { scenarioId, transfer: k === "transfer", age, turns, situation: own?.situation, opener };
+    const input = { scenarioId, transfer: k === "transfer", age, turns, situation: customOpen?.scene ?? own?.situation, opener };
     setCoaches((c) => ({ ...c, [k]: "loading" }));
     let result: Coach;
     try {
@@ -274,15 +275,18 @@ export default function PracticePage() {
   const tip = results.first ? biggestMiss(results.first.turns[0].card) : null;
   const situationText =
     scenarioId === "custom" && !transfer
-      ? (own?.situation ?? "Your own moment")
+      ? (customOpen?.scene ?? own?.situation ?? "Your own moment")
       : `Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`;
   const currentState = [...shown].reverse().find((m) => m.role === "child" && m.state)?.state;
   const lesson = kind === "first" ? lessonById(store?.lesson) : undefined;
   // "Need an idea?" starts from what Sam actually said, not a stock line.
   const ideaLines = describe(scenarioId, transfer).lines;
-  const ideaFromSam = openerText
-    ? [reflectFeeling(openerText) ?? ideaLines.feeling, ideaLines.limit, ideaLines.choice].join(" ")
-    : IDEAS[scenarioId].first;
+  const ideaFromSam =
+    scenarioId === "custom" && !transfer && customOpen?.idea
+      ? customOpen.idea
+      : openerText
+        ? [reflectFeeling(openerText) ?? ideaLines.feeling, ideaLines.limit, ideaLines.choice].join(" ")
+        : IDEAS[scenarioId].first;
   const firstCoach = typeof coaches.first === "object" ? coaches.first : null;
 
   return (
@@ -303,7 +307,7 @@ export default function PracticePage() {
             context={context}
             transfer={transfer}
             situation={situationText}
-            ownSituation={scenarioId === "custom" && !transfer ? own?.situation : undefined}
+            ownSituation={scenarioId === "custom" && !transfer ? (customOpen?.scene ?? own?.situation) : undefined}
             child={child}
             initialText={kind === "first" && scenarioId === "custom" ? own?.said : undefined}
             banner={

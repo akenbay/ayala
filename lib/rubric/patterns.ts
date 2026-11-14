@@ -46,7 +46,7 @@ export const NEGATIVE_DIRECTION = /\b(stop|don'?t|do not|quit|no more|never|no\b
 
 /** Insults, shaming and physical punishment. */
 export const SHAMING =
-  /\b(bad (boy|girl|kid)|naughty|stupid|dumb|brat|crybaby|cry baby|stop being a baby|such a baby|spoiled|lazy|idiot|shut up|ridiculous|embarrass(ing|ed)?|ashamed|what'?s wrong with you|you'?re (so )?(annoying|horrible|terrible|mean|selfish)|i don'?t love you|nobody likes|loser)\b/i;
+  /\b(bad (boy|girl|kid)|(you'?re|you are) (being )?(so |such a |really |a )?bad\b|naughty|stupid|dumb|brat|crybaby|cry baby|stop being a baby|such a baby|spoiled|lazy|idiot|shut up|ridiculous|embarrass(ing|ed)?|ashamed|what'?s wrong with you|you'?re (so )?(annoying|horrible|terrible|mean|selfish)|i don'?t love you|nobody likes|loser)\b/i;
 
 export const PHYSICAL_PUNISHMENT =
   /\b(spank(ing)?|smack|slap|whoop(ing)?|beat (you|your)|belt|pop (you|your)|swat|hit you|hit your (butt|hand|bottom)|wash your mouth|pinch you)\b/i;

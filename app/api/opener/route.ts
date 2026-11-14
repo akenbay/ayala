@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { toddlerOpener } from "@/lib/toddler";
+import { customOpening } from "@/lib/toddler";
 import { detectCrisis } from "@/lib/safety";
 import { clientIp, json, rateLimit } from "@/lib/server";
 
@@ -14,7 +14,7 @@ const Body = z.object({
     .optional(),
 });
 
-/** Sam's first line for the parent's own moment. */
+/** The opening of the parent's own moment: a concrete scene, their earlier line, Sam's protest and a sample reply. */
 export async function POST(req: Request) {
   if (!rateLimit(`opener:${clientIp(req)}`, 20)) return json({ error: "Too many tries. Try again shortly." }, 429);
   let body: z.infer<typeof Body>;
@@ -25,5 +25,6 @@ export async function POST(req: Request) {
   }
   const crisis = detectCrisis(body.situation);
   if (crisis) return json({ crisis: crisis.kind });
-  return json({ opener: await toddlerOpener(body) });
+  const o = await customOpening(body);
+  return json({ ...o });
 }
