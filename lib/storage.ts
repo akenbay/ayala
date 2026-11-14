@@ -21,6 +21,7 @@ export type Attempt = {
   createdAt: string;
   planDay?: number;
   demo?: boolean; // sample data, labeled in the UI
+  outcome?: "going_along" | "resisting" | "meltdown" | "gave_in"; // how Sam ended up
 };
 
 export type PlanDay = { day: number; scenarioId: ScenarioId; focus: Dimension; done: boolean };

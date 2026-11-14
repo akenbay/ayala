@@ -29,9 +29,9 @@ import {
   TypingDots,
   findMarks,
 } from "@/components/ui";
+import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
 import { Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 
-const MAX_PARENT_TURNS = 2;
 
 const LINK_ALIASES: Record<string, ScenarioId> = {
   playground: "leaving_playground",
@@ -99,7 +99,7 @@ function verdict(card: Scorecard): string {
   return miss ? `${first} ${NEXT[miss.dimension]}` : `${first} Every check passed.`;
 }
 
-type Msg = { role: "child" | "parent"; text: string; card?: Scorecard };
+type Msg = { role: "child" | "parent"; text: string; card?: Scorecard; state?: SamState };
 type Step = "chat" | "score" | "compare" | "done";
 
 export default function PracticePage() {
@@ -159,7 +159,9 @@ export default function PracticePage() {
     });
     if (!turns.length) return;
     const { total, byDimension } = summarize(turns);
+    const lastState = [...shown].reverse().find((m) => m.role === "child" && m.state)?.state;
     const attempt: Attempt = {
+      outcome: lastState ?? "resisting",
       id: newId(),
       scenarioId,
       kind,
@@ -266,7 +268,21 @@ function PracticeHeader({ title, step, kind }: { title: string; step: Step; kind
   );
 }
 
-function SamBubble({ text, typing = false }: { text?: string; typing?: boolean }) {
+const STATE_DOT: Record<SamState, string> = {
+  going_along: "bg-good-line",
+  resisting: "bg-orange",
+  meltdown: "bg-red",
+  gave_in: "bg-muted",
+};
+
+const OUTCOME: Record<SamState, { title: string; text: string; tone: string }> = {
+  going_along: { title: "You did it. Sam is coming along.", text: "Your words calmed the moment. See which ones worked.", tone: "bg-good-soft" },
+  meltdown: { title: "Sam melted down.", text: "That happens, even to great parents. Let's see what to change.", tone: "bg-bad-soft" },
+  gave_in: { title: "Sam got their way.", text: "Sam is happy for now, but the limit moved, so this moment will come back.", tone: "bg-peach" },
+  resisting: { title: "Sam is still upset.", text: "Real moments can take a while. Let's see what would help most.", tone: "bg-peach" },
+};
+
+function SamBubble({ text, typing = false, state }: { text?: string; typing?: boolean; state?: SamState }) {
   return (
     <div className="flex max-w-[86%] items-end gap-2">
       <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange text-[15px] font-extrabold">
@@ -280,6 +296,12 @@ function SamBubble({ text, typing = false }: { text?: string; typing?: boolean }
           </div>
         ) : (
           <p className="rounded-[18px] rounded-bl-md bg-peach px-[15px] py-3 text-[17px] leading-snug">{text}</p>
+        )}
+        {state && (
+          <span className="flex items-center gap-1.5 pl-1 text-[13px] font-semibold text-soft-ink">
+            <span aria-hidden className={`h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
+            Sam: {STATE_LABEL[state].toLowerCase()}
+          </span>
         )}
       </div>
     </div>
@@ -306,11 +328,18 @@ function Chat(props: {
   const [pending, setPending] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
-  const canType = parentTurns < MAX_PARENT_TURNS;
+  const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
+  const ended = !busy && parentTurns > 0 && ((lastState && ENDING_STATES.includes(lastState)) || parentTurns >= MAX_PARENT_TURNS);
+  const outcome = OUTCOME[lastState ?? "resisting"];
+  const canType = !ended && parentTurns < MAX_PARENT_TURNS;
 
+  // Keep the newest message in view, including after the ending card appears in the footer.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [msgs.length, busy]);
+    const id = requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
+    return () => cancelAnimationFrame(id);
+  }, [msgs.length, busy, ended]);
+
+
 
   async function send() {
     const t = text.trim();
@@ -341,10 +370,17 @@ function Chat(props: {
       const r = await fetch("/api/toddler", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scenarioId, age, transfer, context, history }),
+        body: JSON.stringify({
+          scenarioId,
+          age,
+          transfer,
+          context,
+          history,
+          passed: Object.fromEntries((data as Scorecard).checks.map((c) => [c.id, c.passed])),
+        }),
       });
-      const reply = r.ok ? ((await r.json()).reply as string) : "Hmph.";
-      setMsgs((m) => [...m, { role: "child", text: reply }]);
+      const d = r.ok ? ((await r.json()) as { reply: string; state: SamState }) : { reply: "Hmph.", state: "resisting" as SamState };
+      setMsgs((m) => [...m, { role: "child", text: d.reply, state: d.state }]);
     } catch {
       setError("Connection problem. Check your internet and try again.");
       setPending("");
@@ -372,7 +408,7 @@ function Chat(props: {
 
         {msgs.map((m, i) =>
           m.role === "child" ? (
-            <SamBubble key={i} text={m.text} />
+            <SamBubble key={i} text={m.text} state={m.state} />
           ) : (
             <div key={i} className="flex max-w-[86%] flex-col items-end gap-1 self-end">
               <span className="pr-1 text-[13px] text-muted">You</span>
@@ -425,8 +461,14 @@ function Chat(props: {
       </div>
 
       <footer className="sticky bottom-0 -mx-4 border-t border-line bg-white px-4 pb-3 pt-2.5 sm:mx-0 sm:rounded-t-2xl sm:border-x">
-        {parentTurns > 0 && !busy && (
-          <button type="button" className="btn-primary mb-2.5 w-full" onClick={onFinish}>
+        {ended && (
+          <div role="status" className={`mb-2.5 rounded-2xl px-4 py-3 ${outcome.tone}`}>
+            <p className="text-[17px] font-extrabold">{outcome.title}</p>
+            <p className="mt-0.5 text-[15px] leading-snug text-soft-ink">{outcome.text}</p>
+          </div>
+        )}
+        {ended && (
+          <button type="button" className="btn-primary mb-1 h-14 w-full text-lg" onClick={onFinish}>
             See my score <Arrow size={20} />
           </button>
         )}
@@ -438,7 +480,18 @@ function Chat(props: {
                   Need an idea?
                 </button>
               ) : (
-                <span className="text-[13px] text-muted">{parentTurns > 0 ? "Or answer Sam once more" : ""}</span>
+                parentTurns > 0 && !busy ? (
+                  <button type="button" onClick={onFinish} className="h-8 text-[15px] font-semibold underline underline-offset-[3px]">
+                    Stop here, see my score
+                  </button>
+                ) : (
+                  <span />
+                )
+              )}
+              {text.length < 320 && parentTurns > 0 && (
+                <span className="text-[13px] text-muted">
+                  Reply {parentTurns + 1} of {MAX_PARENT_TURNS}
+                </span>
               )}
               {text.length >= 320 && (
                 <span aria-live="polite" className={`text-[13px] font-semibold ${text.length >= 390 ? "text-ink" : "text-muted"}`}>
@@ -482,6 +535,29 @@ function Chat(props: {
         <p className="mt-2 text-center text-xs text-muted">Sam is a practice character. Real children respond differently.</p>
       </footer>
     </div>
+  );
+}
+
+function outcomeLine(a: Attempt): string | null {
+  if (!a.outcome) return null;
+  const n = a.turns.length;
+  const after = `after ${n} ${n === 1 ? "reply" : "replies"}`;
+  return {
+    going_along: `Sam went along ${after}.`,
+    meltdown: `Sam melted down ${after}.`,
+    gave_in: `Sam got their way ${after}.`,
+    resisting: `Sam was still resisting ${after}.`,
+  }[a.outcome];
+}
+
+function OutcomeChip({ a }: { a: Attempt }) {
+  const line = outcomeLine(a);
+  if (!line || !a.outcome) return null;
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[15px] font-semibold">
+      <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${STATE_DOT[a.outcome]}`} />
+      {line}
+    </span>
   );
 }
 
@@ -559,6 +635,7 @@ function AttemptScore({ attempt, onRetry }: { attempt: Attempt; onRetry: () => v
     <div className="flex flex-col gap-[18px] py-6">
       <div className="flex flex-col items-center gap-3.5 text-center">
         <ScoreRing value={attempt.total} />
+        <OutcomeChip a={attempt} />
         <h1 className="max-w-[320px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(t.card)}</h1>
         {attempt.turns.length > 1 && <p className="-mt-2 text-sm text-muted">Average of your {attempt.turns.length} replies</p>}
       </div>
@@ -609,6 +686,7 @@ function Compare({ a, b, scenarioId, onTransfer }: { a: Attempt; b: Attempt; sce
           {d > 0 && <ArrowUp size={16} />}
           {d === 0 ? "Same as your first try" : `${d > 0 ? "+" : "−"}${Math.abs(d)} from your first try`}
         </span>
+        <OutcomeChip a={b} />
         <h1 className="max-w-[320px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(tb.card)}</h1>
       </div>
 
@@ -663,7 +741,10 @@ function Done({ first, retry, transfer }: { first?: Attempt; retry?: Attempt; tr
     <div className="flex flex-col gap-[18px] py-6">
       <div className="flex flex-col items-center gap-3.5 text-center">
         <ScoreRing value={transfer.total} />
-        <h1 className="max-w-[340px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">You did it on your own.</h1>
+        <h1 className="max-w-[340px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">
+          {transfer.outcome === "going_along" ? "You did it on your own." : "You tried it on your own."}
+        </h1>
+        <OutcomeChip a={transfer} />
         {first && (
           <p className="text-[17px] text-soft-ink">
             First try <b className="text-ink">{first.total}</b>

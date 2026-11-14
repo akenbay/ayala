@@ -180,7 +180,30 @@ describe("giving in", () => {
     expect(noBribe("You can do one more slide, then we walk to the car.").passed).toBe(true);
   });
   it("the fallback toddler is happy when the parent gives in", async () => {
-    const { fallbackReply } = await import("@/lib/toddler");
-    expect(fallbackReply("leaving_playground", "Okay, five more minutes then.", 0)).toMatch(/Yay|Okay/);
+    const { fallbackReply, decideState, signalsFromText } = await import("@/lib/toddler");
+    const state = decideState(signalsFromText("Okay, five more minutes then."), 0, 0);
+    expect(state).toBe("gave_in");
+    expect(fallbackReply("leaving_playground", state, 0)).toMatch(/Yay|Okay/);
+  });
+});
+
+describe("Sam's state", () => {
+  it("never goes along with yelling, and melts down when it repeats", async () => {
+    const { decideState, signalsFromText } = await import("@/lib/toddler");
+    const yell = signalsFromText("Come on, we're leaving NOW! Stop it!");
+    expect(decideState(yell, 0, 0)).toBe("resisting");
+    expect(decideState(yell, 1, 1)).toBe("meltdown");
+  });
+  it("a calm limit with a named feeling and choices brings Sam along", async () => {
+    const { decideState, signalsFromText } = await import("@/lib/toddler");
+    const good = signalsFromText("You wish we could stay. It's time to go now. Do you want to walk or hop to the car?");
+    expect(decideState(good, 0, 0)).toBe("going_along");
+    const ok = signalsFromText("I know you love the slide. It's time to go now.");
+    expect(decideState(ok, 0, 0)).toBe("resisting");
+    expect(decideState(ok, 1, 0)).toBe("going_along");
+  });
+  it("a vague request keeps Sam resisting", async () => {
+    const { decideState, signalsFromText } = await import("@/lib/toddler");
+    expect(decideState(signalsFromText("Can you please come here?"), 1, 0)).toBe("resisting");
   });
 });

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { toddlerReply } from "@/lib/toddler";
 import { isScenarioId, type ScenarioId } from "@/lib/scenarios";
 import { clientIp, json, rateLimit } from "@/lib/server";
+import type { CheckId } from "@/lib/rubric/types";
 
 const Body = z.object({
   scenarioId: z.string().refine(isScenarioId),
@@ -11,7 +12,8 @@ const Body = z.object({
   history: z
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(400) }))
     .min(2)
-    .max(8),
+    .max(10),
+  passed: z.record(z.string(), z.boolean()).optional(),
 });
 
 export async function POST(req: Request) {
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
     age: body.age,
     context: body.context,
     history,
+    passed: body.passed as Partial<Record<CheckId, boolean>> | undefined,
   });
   return json(result);
 }

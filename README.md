@@ -14,7 +14,7 @@ Built for Zimran Business Cup 2026 (Skills track).
 
 1. Open the link. No sign up.
 2. Tap **Leaving the playground**. The practice opens right away (age defaults to 3; change it on the home page).
-3. Type what you would really say, or tap **Need an idea?** for a labeled sample that runs through the real pipeline. Sam, the practice toddler, replies. Answer once more or press **See my score**.
+3. Type what you would really say, or tap **Need an idea?** for a labeled sample that runs through the real pipeline. Sam, the practice toddler, replies, and a line under each reply shows how Sam is doing: going along, still resisting, melting down, or got their way (the parent gave in). The practice ends when Sam goes along, melts down or gets their way, or after 3 replies. Sam's state is decided by code from your words, so it can never reward yelling or giving in; ChatGPT only writes Sam's line to fit it.
 4. Read the score: tap any highlighted phrase to see why it helped or hurt, and every point quotes your own words. **See full breakdown** shows all 13 checks with their CDC source.
 5. Press **Try again with this tip**, then see your before and after.
 6. Press **Try a new situation**: a new moment with no tips, to show the skill transfers.
