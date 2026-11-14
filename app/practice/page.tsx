@@ -111,7 +111,7 @@ function verdict(card: Scorecard): string {
   return miss ? `${first} ${NEXT[miss.dimension]}` : `${first} Every check passed.`;
 }
 
-type Msg = { role: "child" | "parent"; text: string; card?: Scorecard; state?: SamState };
+type Msg = { role: "child" | "parent"; text: string; card?: Scorecard; state?: SamState; setup?: boolean };
 type Step = "chat" | "score" | "compare" | "paywall" | "done";
 
 export default function PracticePage() {
@@ -131,7 +131,7 @@ export default function PracticePage() {
 
   const [step, setStep] = useState<Step>("chat");
   const [kind, setKind] = useState<AttemptKind>("first");
-  const [msgs, setMsgs] = useState<Msg[]>([{ role: "child", text: "" }]);
+  const [msgs, setMsgs] = useState<Msg[]>([]);
   const [results, setResults] = useState<Partial<Record<AttemptKind, Attempt>>>({});
   const [coaches, setCoaches] = useState<Partial<Record<AttemptKind, Coach | "loading">>>({});
 
@@ -181,12 +181,18 @@ export default function PracticePage() {
   const transfer = kind === "transfer";
   const title = transfer ? scenario.transfer.title : scenario.short;
   const openerFor = (t: boolean) => (scenarioId === "custom" && !t ? (customOpener ?? "…") : describe(scenarioId, t).childOpener);
-  // The opener depends on the scenario, which is known only after the store loads.
-  const shown = msgs.length === 1 && !msgs[0].text ? [{ role: "child" as const, text: openerFor(false) }] : msgs;
+  /** The chat starts mid-moment: what the parent already said (not scored), then Sam's refusal. */
+  const openingFor = (t: boolean): Msg[] => [
+    { role: "parent", text: describe(scenarioId, t).setup, setup: true },
+    { role: "child", text: openerFor(t) },
+  ];
+  // The opening depends on the scenario, which is known only after the store loads.
+  const shown = msgs.length === 0 ? openingFor(false) : msgs;
+  const openerText = shown.find((m) => m.role === "child")?.text;
 
   function startChat(k: AttemptKind) {
     setKind(k);
-    setMsgs([{ role: "child", text: openerFor(k === "transfer") }]);
+    setMsgs(openingFor(k === "transfer"));
     setStep("chat");
     window.scrollTo({ top: 0 });
   }
@@ -233,7 +239,7 @@ export default function PracticePage() {
     });
     setStep(kind === "first" ? "score" : kind === "retry" ? "compare" : "done");
     window.scrollTo({ top: 0 });
-    loadCoach(kind, turns, shown[0]?.role === "child" ? shown[0].text : undefined);
+    loadCoach(kind, turns, openerText);
   }
 
   /** Asks the coach to read the whole conversation. Falls back to the code coach in the browser. */
@@ -271,8 +277,8 @@ export default function PracticePage() {
   const lesson = kind === "first" ? lessonById(store?.lesson) : undefined;
   // "Need an idea?" starts from what Sam actually said, not a stock line.
   const ideaLines = describe(scenarioId, transfer).lines;
-  const ideaFromSam = shown[0]?.text
-    ? [reflectFeeling(shown[0].text) ?? ideaLines.feeling, ideaLines.limit, ideaLines.choice].join(" ")
+  const ideaFromSam = openerText
+    ? [reflectFeeling(openerText) ?? ideaLines.feeling, ideaLines.limit, ideaLines.choice].join(" ")
     : IDEAS[scenarioId].first;
   const firstCoach = typeof coaches.first === "object" ? coaches.first : null;
 
@@ -312,7 +318,7 @@ export default function PracticePage() {
                   : kind === "first" && scenarioId === "custom" && own?.said
                     ? { label: "Today I lost it", text: "Your words are ready below. Send them to see how Sam reacts, then we'll find a better way together." }
                     : lesson
-                      ? { label: `Lesson: ${lesson.title}`, text: lesson.points[lesson.points.length - 1] }
+                      ? { label: `Lesson: ${lesson.title}`, text: lesson.focus }
                       : null
             }
             msgs={shown}
@@ -528,7 +534,7 @@ function Chat(props: {
   const [quick, setQuick] = useState(false); // Sam is using prewritten lines because the AI did not answer
   const voice = useVoice((said) => setText((t) => (t ? `${t} ${said}` : said).slice(0, MAX_CHARS)));
   const endRef = useRef<HTMLDivElement>(null);
-  const parentTurns = msgs.filter((m) => m.role === "parent").length;
+  const parentTurns = msgs.filter((m) => m.role === "parent" && !m.setup).length;
   const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
   const ended = !busy && parentTurns > 0 && ((lastState && ENDING_STATES.includes(lastState)) || parentTurns >= MAX_PARENT_TURNS);
   const outcome = OUTCOME[lastState ?? "resisting"];
@@ -536,10 +542,10 @@ function Chat(props: {
 
   // Keep the newest message in view, including after the ending card appears in the footer.
   useEffect(() => {
-    if (msgs.length < 2 && !busy) return; // on open, stay at the top so the situation is visible
+    if (parentTurns === 0 && !busy) return; // on open, stay at the top so the situation and opening are visible
     const id = requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
     return () => cancelAnimationFrame(id);
-  }, [msgs.length, busy, ended]);
+  }, [msgs.length, busy, ended, parentTurns]);
 
 
 
@@ -576,7 +582,8 @@ function Chat(props: {
       setText("");
       setPending("");
       setBusy("child");
-      const history = next.map((m) => ({ role: m.role === "child" ? "assistant" : "user", content: m.text }));
+      const setupLine = next.find((m) => m.setup)?.text;
+      const history = next.filter((m) => !m.setup).map((m) => ({ role: m.role === "child" ? "assistant" : "user", content: m.text }));
       const r = await fetch("/api/toddler", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -588,6 +595,7 @@ function Chat(props: {
           history,
           situation: ownSituation,
           child,
+          setup: setupLine,
           passed: Object.fromEntries((data as Scorecard).checks.map((c) => [c.id, c.passed])),
           total: (data as Scorecard).total,
         }),
@@ -656,7 +664,14 @@ function Chat(props: {
 
         {msgs.map((m, i) =>
           m.role === "child" ? (
-            <SamBubble key={i} text={m.text} state={m.state} opener={i === 0} />
+            <SamBubble key={i} text={m.text} state={m.state} opener={!m.state} />
+          ) : m.setup ? (
+            <div key={i} className="anim-bubble flex max-w-[86%] flex-col items-end gap-1 self-end">
+              <span className="pr-1 text-[13px] text-muted">You, a moment ago</span>
+              <p className="rounded-[18px] rounded-br-md border-[1.5px] border-dashed border-field bg-white px-[15px] py-3 text-[17px] leading-snug text-soft-ink">
+                {m.text}
+              </p>
+            </div>
           ) : (
             <div key={i} className="anim-bubble flex max-w-[86%] flex-col items-end gap-1 self-end">
               <span className="pr-1 text-[13px] text-muted">You</span>

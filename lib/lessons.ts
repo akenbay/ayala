@@ -11,6 +11,7 @@ export type Lesson = {
   id: string;
   title: string;
   hook: string; // one line on the card
+  focus: string; // the one-line focus shown during practice
   minutes: number;
   points: string[]; // 3 key ideas
   say: string[]; // phrases to try
@@ -23,6 +24,7 @@ export type Lesson = {
 export const LESSONS: Lesson[] = [
   {
     id: "feeling",
+    focus: "Name what Sam feels first, then say what happens next.",
     title: "Name the feeling first",
     hook: "An upset toddler can't hear directions yet.",
     minutes: 2,
@@ -39,6 +41,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: "directions",
+    focus: "Say one clear direction as a statement, and offer two choices.",
     title: "Give one clear direction",
     hook: "Say it, don't ask it. One thing at a time.",
     minutes: 2,
@@ -55,6 +58,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: "limits",
+    focus: "Say the limit calmly, then hold it. No deals once you have said it.",
     title: "Hold the limit, calmly",
     hook: "Giving in after a tantrum teaches that tantrums work.",
     minutes: 2,
@@ -71,6 +75,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: "safety",
+    focus: "Stop the hitting first (\"I won't let you hit\"), then offer something to do instead.",
     title: "Safety first when it gets physical",
     hook: "Stop the hitting first. Feelings can wait a minute.",
     minutes: 2,

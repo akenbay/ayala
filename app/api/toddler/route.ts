@@ -16,6 +16,7 @@ const Body = z.object({
   passed: z.record(z.string(), z.boolean()).optional(),
   situation: z.string().max(400).optional(),
   total: z.number().min(0).max(100).optional(),
+  setup: z.string().max(200).optional(),
   child: z
     .object({
       sex: z.enum(["boy", "girl", "unsaid"]).optional(),
@@ -37,7 +38,13 @@ export async function POST(req: Request) {
   if (body.history[body.history.length - 1].role !== "user") return json({ error: "Invalid request." }, 400);
   // The model API expects the conversation to start with a user turn.
   const history = body.history[0].role === "assistant"
-    ? [{ role: "user" as const, content: "(The practice begins. Sam speaks first.)" }, ...body.history]
+    ? [
+        {
+          role: "user" as const,
+          content: body.setup ? `(Before this, the parent said: "${body.setup.replace(/["<>]/g, "")}")` : "(The practice begins. Sam speaks first.)",
+        },
+        ...body.history,
+      ]
     : body.history;
   const result = await toddlerReply({
     scenarioId: body.scenarioId as ScenarioId,

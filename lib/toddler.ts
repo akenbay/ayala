@@ -133,7 +133,8 @@ export async function toddlerReply(opts: {
   const { scenarioId, transfer, age, history } = opts;
   const context = (opts.context ?? "").replace(/[<>]/g, "").slice(0, 120).trim();
   const last = history[history.length - 1]?.content ?? "";
-  const parentMsgs = history.filter((m) => m.role === "user" && !m.content.startsWith("(The practice begins"));
+  // Bracketed lines are scene notes (the practice start, or what the parent said before it), not replies.
+  const parentMsgs = history.filter((m) => m.role === "user" && !m.content.startsWith("("));
   const childTurn = Math.max(0, parentMsgs.length - 1);
   const priorHarsh = parentMsgs.slice(0, -1).filter((m) => signalsFromText(m.content).harsh).length;
   const signals = opts.passed ? signalsFromChecks(opts.passed, last) : signalsFromText(last);
