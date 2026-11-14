@@ -58,11 +58,13 @@ export function signalsFromChecks(passed: Partial<Record<CheckId, boolean>>, tex
  * Decides Sam's state in code, so it is repeatable and can never contradict the parent's words.
  * childTurn counts Sam's replies before this one (0 for the first reply to the parent).
  */
-export function decideState(s: Signals, childTurn: number, priorHarsh: number): SamState {
+export function decideState(s: Signals, childTurn: number, priorHarsh: number, total?: number): SamState {
   if (s.gaveIn && !s.harsh) return "gave_in";
   if (s.harsh) return priorHarsh >= 1 || childTurn >= 2 ? "meltdown" : "resisting";
   const warm = s.feeling || s.choice || s.alternative;
-  if (childTurn === 0) return s.limit && s.feeling && (s.choice || s.alternative) ? "going_along" : "resisting";
+  // Toddlers rarely comply at the first sentence: only a really strong first reply (all three pieces and 85+) does it.
+  if (childTurn === 0)
+    return s.limit && s.feeling && (s.choice || s.alternative) && (total === undefined || total >= 85) ? "going_along" : "resisting";
   if (s.limit && warm) return "going_along";
   if (childTurn >= 2 && (s.limit || warm)) return "going_along";
   return "resisting";
@@ -124,6 +126,7 @@ export async function toddlerReply(opts: {
   context?: string;
   history: ChatMessage[]; // the last message is the parent's
   passed?: Partial<Record<CheckId, boolean>>; // the latest scorecard's checks, if the client has them
+  total?: number; // the latest scorecard's total
   situation?: string; // the parent's own moment, for "custom"
   child?: ChildProfile;
 }): Promise<{ reply: string; state: SamState; degraded: boolean }> {
@@ -134,7 +137,7 @@ export async function toddlerReply(opts: {
   const childTurn = Math.max(0, parentMsgs.length - 1);
   const priorHarsh = parentMsgs.slice(0, -1).filter((m) => signalsFromText(m.content).harsh).length;
   const signals = opts.passed ? signalsFromChecks(opts.passed, last) : signalsFromText(last);
-  const state = decideState(signals, childTurn, priorHarsh);
+  const state = decideState(signals, childTurn, priorHarsh, opts.total);
 
   const fallback = () => ({ reply: fallbackReply(scenarioId, state, childTurn), state, degraded: true });
   if (!llmAvailable()) return fallback();

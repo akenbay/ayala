@@ -42,6 +42,7 @@ export default function MomentPage() {
     update((st) => {
       st.custom = { situation: s.slice(0, MAX_SITUATION), ...(mode === "lost" && w ? { said: w.slice(0, MAX_CHARS) } : {}) };
       st.current = "custom";
+      st.lesson = null;
       st.currentPlanDay = null;
     });
     router.push("/practice");

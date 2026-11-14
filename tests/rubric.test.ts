@@ -224,3 +224,15 @@ describe("crisis safety", () => {
     expect(detectCrisis("You're killing me, we're leaving now")).toBeNull();
   });
 });
+
+describe("Sam is not more obedient on the retry", () => {
+  it("decides the state from the words alone, the same in any step", async () => {
+    const { decideState, signalsFromText } = await import("@/lib/toddler");
+    const t = "You want more blocks. Choose: put blocks in the bin or walk to bed.";
+    // No limit stated in code, so Sam keeps resisting on the first reply.
+    expect(decideState(signalsFromText(t), 0, 0)).toBe("resisting");
+    // Even if every piece passes, a first reply under 85 does not end the moment.
+    expect(decideState({ ...signalsFromText(t), feeling: true, limit: true }, 0, 0, 72)).toBe("resisting");
+    expect(decideState({ ...signalsFromText(t), feeling: true, limit: true }, 0, 0, 90)).toBe("going_along");
+  });
+});

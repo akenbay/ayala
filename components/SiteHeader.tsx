@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bars, Logo } from "./icons";
+import { Bars } from "./icons";
 
 /** Slim brand bar. The practice flow has its own focused header, so it is hidden there. */
 export function SiteHeader() {
@@ -11,7 +11,8 @@ export function SiteHeader() {
   return (
     <header className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 pt-2">
       <Link href="/" className="flex items-center gap-2 text-[22px] font-extrabold tracking-tight">
-        <Logo />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/bears.svg" alt="" width={36} height={35} className="h-9 w-9" />
         Ayala
       </Link>
       <nav className="flex items-center gap-2">

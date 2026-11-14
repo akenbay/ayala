@@ -79,6 +79,10 @@ When you press **See my score**, `/api/coach` reads the whole practice: your rep
 
 ChatGPT writes these when a key is set; each part that fails a rule is replaced by the code version, and without a key the code coach builds all four (`lib/coach.ts`). The retry then shows your own Change note as the tip, and **Need an idea?** offers your improved sentence.
 
+## Learn, then practice
+
+The home page has four short lessons (`lib/lessons.ts`), each a plain-language summary of one CDC "Essentials for Parenting Toddlers and Preschoolers" topic: name the feeling first (Time-In), give one clear direction (Steps for Giving Good Directions), hold the limit calmly (Tips for Using Consequences), and safety first when it gets physical (Tips for Responding to Behavior). A lesson opens in place with three ideas, phrases to try, one thing to skip and the CDC link, then **Practice it** starts the matching moment with the lesson shown as the focus.
+
 ## Funnel order (a hypothesis we test)
 
 Ad link → the moment, with Sam's first line and the reply box (and a mic) already on screen, "About 2 minutes. No account needed." → or from home: the 7 question quiz, with a "you're not alone" break after question 3 and a "Setting up Sam" screen listing the answers Sam is built from → first practice → one change and your improved sentence → retry → the gain as the hero, plus "Could you actually say this to your child?" (Yes / Not quite, kept with the attempt as a usefulness signal) → paywall with your plan ("7 days on your weakest skill", day 1 done), yearly preselected, exact renewal terms, 14 day guarantee, no countdown timer → "Not now, continue free" goes on to the new situation; Progress is the second paywall.

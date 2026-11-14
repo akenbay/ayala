@@ -37,6 +37,7 @@ export type Store = {
   plan: PlanDay[];
   unlocked: boolean;
   custom?: { situation: string; said?: string }; // the parent's own moment
+  lesson?: string | null; // the lesson the parent just read, shown as the focus of the next practice
   profile?: Profile; // answers from the start quiz
 };
 

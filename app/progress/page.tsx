@@ -159,6 +159,7 @@ export default function ProgressPage() {
     update((s) => {
       s.current = p.scenarioId;
       s.currentPlanDay = day;
+      s.lesson = null;
     });
     router.push("/practice");
   }

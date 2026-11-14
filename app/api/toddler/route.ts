@@ -15,6 +15,7 @@ const Body = z.object({
     .max(10),
   passed: z.record(z.string(), z.boolean()).optional(),
   situation: z.string().max(400).optional(),
+  total: z.number().min(0).max(100).optional(),
   child: z
     .object({
       sex: z.enum(["boy", "girl", "unsaid"]).optional(),
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
     passed: body.passed as Partial<Record<CheckId, boolean>> | undefined,
     situation: body.situation,
     child: body.child,
+    total: body.total,
   });
   return json(result);
 }

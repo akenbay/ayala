@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
+import { SCENARIOS, SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
+import { LESSONS, lessonSource, type Lesson } from "@/lib/lessons";
 import { focusLabel, update, useStore, type Age } from "@/lib/storage";
 import { TEST_CARD } from "@/lib/pricing";
-import { Arrow, ChevronRight, ScenarioIcon } from "@/components/icons";
+import { Arrow, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
 import { Sam } from "@/components/Sam";
 
 const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3, custom: 3 };
@@ -15,14 +16,16 @@ export default function Home() {
   const router = useRouter();
   const store = useStore();
   const [editing, setEditing] = useState(false);
+  const [openLesson, setOpenLesson] = useState<string | null>(null);
   const age: Age = store?.childAge ?? 3;
   const context = store?.context ?? "";
   const unlocked = store?.unlocked ?? false;
   const nextPlan = store?.plan.find((p) => !p.done);
   const doneDays = store?.plan.filter((p) => p.done).length ?? 0;
+  const hasProfile = Boolean(store?.profile);
 
-  function start(id: ScenarioId, planDay: number | null = null) {
-    const sc = SCENARIO_LIST.find((s) => s.id === id)!;
+  function start(id: ScenarioId, planDay: number | null = null, lesson: string | null = null) {
+    const sc = SCENARIOS[id];
     const locked = (!sc.free || (planDay !== null && planDay > 1)) && !unlocked;
     if (locked) {
       router.push("/pricing?from=" + id);
@@ -31,177 +34,255 @@ export default function Home() {
     update((s) => {
       s.current = id;
       s.currentPlanDay = planDay;
+      s.lesson = lesson;
     });
     router.push("/practice");
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <section className="pt-6 sm:pt-12">
-        <div className="anim-rise flex items-end justify-between gap-3">
-          <h1 className="font-display max-w-3xl text-[34px] leading-[1.1] sm:text-6xl sm:leading-[1.05]">
-            Practice the words before the hard moment.
-          </h1>
-          <Sam face="happy" size={88} idle label="Sam, your practice toddler" />
+    <div className="mx-auto max-w-3xl">
+      {/* 1. Hero: one promise, one main action */}
+      <section className="pt-5 sm:pt-10">
+        <div className="anim-rise relative mx-auto mb-2 flex w-full max-w-[300px] justify-center">
+          <span aria-hidden className="absolute inset-x-6 bottom-2 top-8 rounded-full bg-peach blur-2xl" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bears.svg"
+            alt="A parent bear hugging a baby bear"
+            width={754}
+            height={732}
+            className="anim-bob relative h-auto w-[240px] sm:w-[300px]"
+          />
         </div>
-        <p className="anim-rise mt-3 max-w-xl text-[17px] leading-relaxed text-muted sm:mt-5 sm:text-xl" style={{ animationDelay: "60ms" }}>
-          Rehearse hard moments with Sam, a pretend toddler. See which of your words help.
+        <h1 className="anim-rise font-display text-center text-[34px] leading-[1.1] sm:text-5xl" style={{ animationDelay: "40ms" }}>
+          Practice the words before the hard moment.
+        </h1>
+        <p className="anim-rise mx-auto mt-3 max-w-md text-center text-[17px] leading-relaxed text-muted" style={{ animationDelay: "80ms" }}>
+          Learn one idea from CDC guidance, then rehearse it with Sam, a pretend toddler.
         </p>
-        {store && !store.profile && (
-          <Link href="/start" className="btn-primary mt-5 h-14 w-full text-lg sm:w-auto">
-            Get my plan in 60 seconds <Arrow size={20} />
-          </Link>
-        )}
+
+        <div className="anim-rise mx-auto mt-5 max-w-md" style={{ animationDelay: "120ms" }}>
+          {!hasProfile ? (
+            <Link href="/start" className="btn-primary h-14 w-full text-lg">
+              Get my plan in 60 seconds <Arrow size={20} />
+            </Link>
+          ) : nextPlan ? (
+            <button
+              type="button"
+              onClick={() => start(nextPlan.scenarioId, nextPlan.day)}
+              className="shadow-soft flex w-full items-center gap-3.5 rounded-3xl bg-white px-5 py-4 text-left"
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-peach text-[15px] font-extrabold">
+                {doneDays + 1}/7
+              </span>
+              <span className="flex flex-1 flex-col gap-0.5">
+                <span className="text-[17px] font-bold">Continue: day {nextPlan.day}</span>
+                <span className="text-[15px] text-muted">
+                  {SCENARIOS[nextPlan.scenarioId].short}: {focusLabel(nextPlan.focus).toLowerCase()}
+                </span>
+              </span>
+              <Arrow size={20} />
+            </button>
+          ) : null}
+        </div>
       </section>
 
-      {store && !store.profile && <p className="mt-6 text-[15px] font-semibold text-muted sm:mt-10">Or try one now:</p>}
+      {/* 2. Learn, then practice */}
+      <section aria-labelledby="learn-h" className="mt-9">
+        <div className="flex items-baseline justify-between">
+          <h2 id="learn-h" className="font-display text-[24px]">
+            Learn, then practice
+          </h2>
+          <span className="text-[13px] text-muted">From CDC guidance</span>
+        </div>
+        <ul className="mt-3 flex flex-col gap-3">
+          {LESSONS.map((l, i) => (
+            <LessonCard
+              key={l.id}
+              lesson={l}
+              index={i}
+              open={openLesson === l.id}
+              locked={!SCENARIOS[l.practice].free && !unlocked}
+              onToggle={() => setOpenLesson((v) => (v === l.id ? null : l.id))}
+              onPractice={() => start(l.practice, null, l.id)}
+            />
+          ))}
+        </ul>
+      </section>
 
-      <nav aria-label="Scenarios" className={`grid gap-3 sm:grid-cols-3 sm:gap-5 ${store && !store.profile ? "mt-3" : "mt-6 sm:mt-10"}`}>
-        {SCENARIO_LIST.map((s, idx) => {
-          const plus = !s.free && !unlocked;
-          const featured = idx === 0;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => start(s.id)}
-              style={{ animationDelay: `${120 + idx * 60}ms` }}
-              className={`anim-rise group flex items-center gap-4 text-left transition duration-150 active:scale-[0.98] sm:min-h-[220px] sm:flex-col sm:items-start sm:p-6 ${
-                featured
-                  ? "shadow-soft rounded-3xl bg-peach p-5 sm:col-span-1"
-                  : "min-h-[76px] rounded-2xl bg-white p-4 pl-[18px] hover:shadow-[0_0_0_2px_#30251F]"
-              }`}
-            >
-              {featured ? (
-                <span className="shrink-0">
-                  <Sam face="resisting" size={72} />
-                </span>
-              ) : (
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-peach sm:h-16 sm:w-16">
-                  <ScenarioIcon id={s.id} size={26} />
-                </span>
-              )}
-              <span className="flex flex-1 flex-col gap-1 sm:mt-auto sm:w-full">
-                {featured && <span className="label-caps text-amber-text">Most common</span>}
-                <span className="flex items-center gap-2">
-                  <span className={`${featured ? "font-display text-[24px]" : "text-[19px] font-bold"} sm:text-2xl`}>{s.short}</span>
-                  {plus && <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>}
-                </span>
-                <span className="flex items-center justify-between text-[15px] text-muted sm:text-base">
-                  About {MINUTES[s.id]} minutes
-                  <Arrow size={22} className="hidden text-ink sm:block" />
-                </span>
-              </span>
-              <ChevronRight size={20} className="transition group-hover:translate-x-0.5 sm:hidden" />
-            </button>
-          );
-        })}
-      </nav>
-
-      <Link
-        href="/moment"
-        className="anim-rise mt-3 flex items-center gap-4 rounded-2xl border-[1.5px] border-dashed border-field bg-paper p-4 pl-[18px] transition hover:border-ink sm:mt-5 sm:p-5"
-        style={{ animationDelay: "320ms" }}
-      >
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-peach">
-          <ScenarioIcon id="custom" size={26} />
-        </span>
-        <span className="flex flex-1 flex-col gap-0.5">
-          <span className="text-xl font-bold">Your own moment</span>
-          <span className="text-[15px] text-muted">Your situation, or what you said when you lost it.</span>
-        </span>
-        <ChevronRight size={20} />
-      </Link>
-
-      <div className="mt-5 flex flex-col gap-4 sm:mt-7 sm:flex-row sm:items-start sm:justify-between">
-        <div className="sm:flex-1">
-          <p className="text-[15px] text-muted sm:text-base">
-            Child&apos;s age: <b className="text-ink">{age}</b>,{" "}
-            <button
-              type="button"
-              onClick={() => setEditing((v) => !v)}
-              aria-expanded={editing}
-              className="-mx-1 px-1 py-3 font-semibold text-ink underline underline-offset-[3px]"
-            >
+      {/* 3. Practice a moment directly */}
+      <section aria-labelledby="practice-h" className="mt-9">
+        <div className="flex items-baseline justify-between">
+          <h2 id="practice-h" className="font-display text-[24px]">
+            Practice a moment
+          </h2>
+          <span className="text-[13px] text-muted">
+            Age {age},{" "}
+            <button type="button" onClick={() => setEditing((v) => !v)} aria-expanded={editing} className="font-semibold text-ink underline underline-offset-2">
               {editing ? "done" : "change"}
             </button>
-          </p>
-          {editing && (
-            <div className="mt-1 max-w-md space-y-4 rounded-2xl bg-white p-4">
-              <div className="flex gap-2" role="group" aria-label="Child's age">
-                {([2, 3, 4] as Age[]).map((a) => (
-                  <button
-                    key={a}
-                    type="button"
-                    className="chip"
-                    aria-pressed={age === a}
-                    onClick={() =>
-                      update((s) => {
-                        s.childAge = a;
-                      })
-                    }
-                  >
-                    {a} years
-                  </button>
-                ))}
-              </div>
-              <div>
-                <label htmlFor="ctx" className="text-[15px] font-semibold">
-                  Anything Sam should know? <span className="font-normal text-muted">(optional)</span>
-                </label>
-                <input
-                  id="ctx"
-                  value={context}
-                  maxLength={120}
-                  onChange={(e) =>
-                    update((s) => {
-                      s.context = e.target.value.slice(0, 120);
-                    })
-                  }
-                  placeholder="He's usually tired after daycare"
-                  className="mt-2 h-12 w-full rounded-xl border-[1.5px] border-field bg-cream px-3.5 text-base outline-none focus:border-ink"
-                />
-                <p className="mt-1.5 text-[13px] text-muted">Please don&apos;t enter your child&apos;s real name.</p>
-              </div>
-            </div>
-          )}
+          </span>
         </div>
 
-        {nextPlan && (
-          <button
-            type="button"
-            onClick={() => start(nextPlan.scenarioId, nextPlan.day)}
-            className="flex w-full items-center gap-3.5 rounded-2xl border border-line bg-paper px-[18px] py-4 text-left sm:max-w-[420px]"
-          >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cream text-[15px] font-extrabold">
-              {doneDays + 1}/7
-            </span>
-            <span className="flex flex-1 flex-col gap-0.5">
-              <span className="text-[17px] font-bold">Day {nextPlan.day} of your plan</span>
-              <span className="text-[15px] text-muted">
-                {SCENARIO_LIST.find((s) => s.id === nextPlan.scenarioId)?.short}: {focusLabel(nextPlan.focus).toLowerCase()}
-              </span>
-            </span>
-            <span className="flex items-center gap-1 text-base font-bold">
-              Continue <Arrow size={18} />
-            </span>
-          </button>
+        {editing && (
+          <div className="anim-fade-down mt-3 space-y-4 rounded-2xl bg-white p-4">
+            <div className="flex gap-2" role="group" aria-label="Child's age">
+              {([2, 3, 4] as Age[]).map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  className="chip"
+                  aria-pressed={age === a}
+                  onClick={() =>
+                    update((s) => {
+                      s.childAge = a;
+                    })
+                  }
+                >
+                  {a} years
+                </button>
+              ))}
+            </div>
+            <div>
+              <label htmlFor="ctx" className="text-[15px] font-semibold">
+                Anything Sam should know? <span className="font-normal text-muted">(optional)</span>
+              </label>
+              <input
+                id="ctx"
+                value={context}
+                maxLength={120}
+                onChange={(e) =>
+                  update((s) => {
+                    s.context = e.target.value.slice(0, 120);
+                  })
+                }
+                placeholder="He's usually tired after daycare"
+                className="mt-2 h-12 w-full rounded-xl border-[1.5px] border-field bg-cream px-3.5 text-base outline-none focus:border-ink"
+              />
+              <p className="mt-1.5 text-[13px] text-muted">Please don&apos;t enter your child&apos;s real name.</p>
+            </div>
+          </div>
         )}
-      </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {SCENARIO_LIST.map((s) => {
+            const plus = !s.free && !unlocked;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => start(s.id)}
+                className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl bg-white p-4 text-left transition duration-150 hover:shadow-[0_0_0_2px_#30251F] active:scale-[0.98]"
+              >
+                <span className="flex w-full items-start justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach">
+                    <ScenarioIcon id={s.id} size={24} />
+                  </span>
+                  {plus && <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-cream">Plus</span>}
+                </span>
+                <span className="mt-auto text-[17px] font-bold leading-tight">{s.short}</span>
+                <span className="text-[13px] text-muted">About {MINUTES[s.id]} min</span>
+              </button>
+            );
+          })}
+          <Link
+            href="/moment"
+            className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl border-[1.5px] border-dashed border-field bg-paper p-4 transition duration-150 hover:border-ink active:scale-[0.98]"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach">
+              <ScenarioIcon id="custom" size={24} />
+            </span>
+            <span className="mt-auto text-[17px] font-bold leading-tight">Your own moment</span>
+            <span className="text-[13px] text-muted">Or what you said today</span>
+          </Link>
+        </div>
+      </section>
 
       <details className="group mx-auto mt-10 max-w-xl text-center">
         <summary className="inline-flex cursor-pointer list-none px-2 py-2.5 text-[15px] font-semibold underline underline-offset-[3px]">
           Judges: 3 minute tour
         </summary>
-        <ol className="mt-3 list-decimal space-y-2 rounded-2xl bg-white p-5 pl-9 text-left text-[15px] leading-relaxed text-soft-ink">
+        <ol className="anim-fade-down mt-3 list-decimal space-y-2 rounded-2xl bg-white p-5 pl-9 text-left text-[15px] leading-relaxed text-soft-ink">
           <li>Tap <b>Get my plan in 60 seconds</b>: 7 taps shape Sam (age, boy or girl, temperament), your first focus and a reminder time.</li>
-          <li>Type what you&apos;d say to Sam, or tap <b>Need an idea?</b> for a labeled sample. A line under each reply shows how Sam is doing; the practice ends when Sam goes along, melts down or gets their way.</li>
-          <li><b>See my score</b>: what happened, what to keep, what to change (with the CDC page), how Sam heard it, and your own words improved and re-scored.</li>
-          <li>Retry with your tip, then a <b>new situation with no tips</b>.</li>
-          <li><b>Your own moment</b>: describe your real situation, or <b>Today I lost it</b> with what you actually said. Try typing something like &ldquo;I can&apos;t do this anymore&rdquo; to see the crisis safety screen.</li>
-          <li><b>Your progress</b>: 7 day plan, skills, calendar reminder. <b>See a sample week</b> shows labeled demo data. <b>Plus</b> uses Stripe test card <code className="font-mono font-semibold">{TEST_CARD}</code>.</li>
+          <li>Or open a lesson under <b>Learn, then practice</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
+          <li>Reply to Sam (type or tap the mic). Sam&apos;s face and status show how it&apos;s going; the practice ends when Sam goes along, melts down or gets their way.</li>
+          <li><b>See my score</b>: one thing to keep, one to change (with its CDC page), your own words improved and re-scored. Retry, see the gain, then a new situation with no tips.</li>
+          <li><b>Your own moment</b> or <b>Today I lost it</b>. Typing &ldquo;I can&apos;t do this anymore&rdquo; shows the crisis safety screen.</li>
+          <li><b>Your progress</b>: plan and calendar reminder; <b>See a sample week</b> shows labeled demo data. <b>Plus</b> uses Stripe test card <code className="font-mono font-semibold">{TEST_CARD}</code>.</li>
         </ol>
       </details>
     </div>
+  );
+}
+
+/** A lesson that opens in place: three ideas, phrases to try, one thing to avoid, the CDC page, then practice. */
+function LessonCard({
+  lesson: l,
+  index,
+  open,
+  locked,
+  onToggle,
+  onPractice,
+}: {
+  lesson: Lesson;
+  index: number;
+  open: boolean;
+  locked: boolean;
+  onToggle: () => void;
+  onPractice: () => void;
+}) {
+  const src = lessonSource(l);
+  return (
+    <li className={`anim-rise overflow-hidden rounded-3xl transition-colors duration-200 ${open ? "shadow-soft bg-peach" : "bg-white"}`} style={{ animationDelay: `${index * 50}ms` }}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3.5 p-4 text-left">
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[17px] font-extrabold ${open ? "bg-white" : "bg-peach"}`}>
+          {index + 1}
+        </span>
+        <span className="flex flex-1 flex-col gap-0.5">
+          <span className="text-[17px] font-bold leading-snug">{l.title}</span>
+          <span className="text-[14px] text-muted">{l.hook}</span>
+        </span>
+        <ChevronDown size={20} className={`shrink-0 transition duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="anim-fade-down flex flex-col gap-4 px-4 pb-4">
+          <ol className="flex flex-col gap-2.5">
+            {l.points.map((p, i) => (
+              <li key={i} className="anim-rise flex gap-3 text-[16px] leading-snug" style={{ animationDelay: `${60 + i * 70}ms` }}>
+                <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange" />
+                {p}
+              </li>
+            ))}
+          </ol>
+
+          <div className="rounded-2xl bg-white p-4">
+            <span className="label-caps">Try saying</span>
+            <ul className="mt-2 flex flex-col gap-2">
+              {l.say.map((s) => (
+                <li key={s} className="flex items-start gap-2.5">
+                  <span className="shrink-0">
+                    <Sam face="happy" size={26} />
+                  </span>
+                  <span className="text-[16px] italic leading-snug">&ldquo;{s}&rdquo;</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 border-t border-line pt-2.5 text-[14px] text-soft-ink">
+              <b className="text-bad">Skip:</b> {l.avoid}
+            </p>
+          </div>
+
+          <a href={src.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 self-start text-[14px] font-semibold underline underline-offset-[3px]">
+            <Info size={15} /> Read more: {src.name}
+          </a>
+
+          <button type="button" onClick={onPractice} className="btn-primary h-14 text-lg">
+            {locked ? "Unlock to practice" : `Practice it: ${SCENARIOS[l.practice].short.toLowerCase()}`} <Arrow size={20} />
+          </button>
+          <p className="-mt-2 text-center text-[13px] text-muted">About {l.minutes} minutes with Sam</p>
+        </div>
+      )}
+    </li>
   );
 }

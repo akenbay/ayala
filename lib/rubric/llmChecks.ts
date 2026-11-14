@@ -24,7 +24,7 @@ Schema:
 Checks (return all seven):
 - specific_action: names one concrete action the child can do (not vague like "be good")
 - acknowledges_feeling: names or reflects the child's feeling or wish
-- states_limit: calmly states the limit or what will happen now (e.g. "It's time to go")
+- states_limit: says the limit itself in words, calmly (e.g. "It's time to go now", "Blocks are done for today", "I won't let you hit"). Offering choices ("bin or bed?") or naming the next step alone does NOT count; the parent must say that the current activity is over or not allowed
 - warning_is_calm: passes if there is no warning, or any warning is calm, proportionate and something the parent can really do
 - no_shaming: passes if there is no insult, humiliation or physical punishment
 - two_ok_choices: offers two choices that are both acceptable to the parent

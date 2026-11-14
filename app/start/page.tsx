@@ -130,6 +130,7 @@ export default function StartPage() {
     const profile: Profile = { role: a.role, sex: a.sex, temperament: a.temperament, hardest: multi, usual, when: a.when, focus };
     update((s) => {
       s.profile = profile;
+      s.lesson = null;
       if (a.age) s.childAge = a.age;
       if (!s.attempts.length) s.plan = buildPlan([], focus);
       if (first !== "custom_form") {

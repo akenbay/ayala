@@ -36,6 +36,7 @@ import { codeCoach, type Coach } from "@/lib/coach";
 import type { Crisis } from "@/lib/safety";
 import { CrisisCard } from "@/components/CrisisCard";
 import { Sam, faceFor } from "@/components/Sam";
+import { lessonById } from "@/lib/lessons";
 import { PlanPicker } from "@/components/PlanPicker";
 import { DIMENSION_LABELS } from "@/lib/rubric/types";
 import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
@@ -145,6 +146,7 @@ export default function PracticePage() {
         update((st) => {
           st.current = id;
           st.currentPlanDay = null;
+          st.lesson = null;
         });
         return;
       }
@@ -261,11 +263,22 @@ export default function PracticePage() {
     );
 
   const tip = results.first ? biggestMiss(results.first.turns[0].card) : null;
+  const situationText =
+    scenarioId === "custom" && !transfer
+      ? (own?.situation ?? "Your own moment")
+      : `Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`;
+  const currentState = [...shown].reverse().find((m) => m.role === "child" && m.state)?.state;
+  const lesson = kind === "first" ? lessonById(store?.lesson) : undefined;
   const firstCoach = typeof coaches.first === "object" ? coaches.first : null;
 
   return (
     <div className="-mx-5 flex min-h-[100dvh] flex-col">
-      <PracticeHeader title={title} step={step} kind={kind} />
+      <PracticeHeader
+        title={title}
+        step={step}
+        kind={kind}
+        scene={step === "chat" ? { text: situationText, state: currentState, opener: true } : undefined}
+      />
 
       <div className="mx-auto w-full max-w-xl flex-1 px-4 sm:px-5">
         {step === "chat" && (
@@ -275,11 +288,7 @@ export default function PracticePage() {
             age={age}
             context={context}
             transfer={transfer}
-            situation={
-              scenarioId === "custom" && !transfer
-                ? (own?.situation ?? "Your own moment")
-                : `Your ${age} year old ${transfer ? SITUATION[scenarioId].transfer : SITUATION[scenarioId].main}`
-            }
+            situation={situationText}
             ownSituation={scenarioId === "custom" && !transfer ? own?.situation : undefined}
             child={child}
             initialText={kind === "first" && scenarioId === "custom" ? own?.said : undefined}
@@ -297,7 +306,9 @@ export default function PracticePage() {
                   ? { label: "On your own", text: "A new moment. No tips this time." }
                   : kind === "first" && scenarioId === "custom" && own?.said
                     ? { label: "Today I lost it", text: "Your words are ready below. Send them to see how Sam reacts, then we'll find a better way together." }
-                    : null
+                    : lesson
+                      ? { label: `Lesson: ${lesson.title}`, text: lesson.points[lesson.points.length - 1] }
+                      : null
             }
             msgs={shown}
             setMsgs={setMsgs}
@@ -339,7 +350,17 @@ export default function PracticePage() {
   );
 }
 
-function PracticeHeader({ title, step, kind }: { title: string; step: Step; kind: AttemptKind }) {
+function PracticeHeader({
+  title,
+  step,
+  kind,
+  scene,
+}: {
+  title: string;
+  step: Step;
+  kind: AttemptKind;
+  scene?: { text: string; state?: SamState; opener: boolean };
+}) {
   const active =
     step === "chat" ? (kind === "first" ? 0 : kind === "retry" ? 1 : 2) : step === "score" ? 1 : step === "compare" || step === "paywall" ? 2 : 3;
   const labels = ["Try", "Improve", "New situation"];
@@ -370,6 +391,20 @@ function PracticeHeader({ title, step, kind }: { title: string; step: Step; kind
             );
           })}
         </ol>
+        {scene && (
+          <div className="mt-3 flex items-center gap-3 rounded-2xl bg-peach px-3 py-2.5">
+            <Sam face={faceFor(scene.state, scene.opener)} size={44} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold leading-snug">{scene.text}</p>
+              {scene.state && (
+                <p key={scene.state} className="anim-fade-down mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-soft-ink">
+                  <span aria-hidden className={`h-2 w-2 rounded-full ${STATE_DOT[scene.state]}`} />
+                  Sam: {STATE_LABEL[scene.state].toLowerCase()}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );
@@ -477,7 +512,7 @@ function Chat(props: {
   child?: { sex?: "boy" | "girl" | "unsaid"; temperament?: "calm" | "active" | "fiery" | "sensitive" };
   initialText?: string;
 }) {
-  const { scenarioId, age, context, transfer, situation, banner, msgs, setMsgs, idea, ideaLabel, onFinish, ownSituation, child, initialText } = props;
+  const { scenarioId, age, context, transfer, banner, msgs, setMsgs, idea, ideaLabel, onFinish, ownSituation, child, initialText } = props;
   const [text, setText] = useState(initialText ?? "");
   const [busy, setBusy] = useState<"" | "score" | "child">("");
   const [error, setError] = useState("");
@@ -489,13 +524,13 @@ function Chat(props: {
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
   const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
-  const face = faceFor(lastState, true);
   const ended = !busy && parentTurns > 0 && ((lastState && ENDING_STATES.includes(lastState)) || parentTurns >= MAX_PARENT_TURNS);
   const outcome = OUTCOME[lastState ?? "resisting"];
   const canType = !ended && parentTurns < MAX_PARENT_TURNS;
 
   // Keep the newest message in view, including after the ending card appears in the footer.
   useEffect(() => {
+    if (msgs.length < 2 && !busy) return; // on open, stay at the top so the situation is visible
     const id = requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
     return () => cancelAnimationFrame(id);
   }, [msgs.length, busy, ended]);
@@ -548,6 +583,7 @@ function Chat(props: {
           situation: ownSituation,
           child,
           passed: Object.fromEntries((data as Scorecard).checks.map((c) => [c.id, c.passed])),
+          total: (data as Scorecard).total,
         }),
       });
       const d = r.ok ? ((await r.json()) as { reply: string; state: SamState }) : { reply: "Hmph.", state: "resisting" as SamState };
@@ -570,18 +606,8 @@ function Chat(props: {
   return (
     <div className="flex min-h-[calc(100dvh-118px)] flex-col">
       <div className="flex flex-1 flex-col gap-3.5 py-4">
-        <section aria-label="The moment" className="anim-rise flex items-center gap-3.5 rounded-3xl bg-peach p-4">
-          <Sam face={face} size={76} idle label={`Sam looks ${face === "happy" ? "happy" : face === "meltdown" ? "upset and crying" : face === "resisting" ? "stubborn" : "calm"}`} />
-          <div className="flex-1">
-            <p className="text-[17px] font-semibold leading-snug">{situation}</p>
-            {lastState && (
-              <p key={lastState} className="anim-fade-down mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[13px] font-semibold">
-                <span aria-hidden className={`h-2 w-2 rounded-full ${STATE_DOT[lastState]}`} />
-                Sam: {STATE_LABEL[lastState].toLowerCase()}
-              </p>
-            )}
             {parentTurns === 0 && !ownSituation && (
-              <p className="mt-1 text-[13px] text-muted">
+              <p className="px-1 text-[13px] text-muted">
                 Age {age},{" "}
                 {ageOpen ? (
                   ([2, 3, 4] as Age[]).map((n) => (
@@ -607,8 +633,7 @@ function Chat(props: {
                 )}
               </p>
             )}
-          </div>
-        </section>
+
         {scenarioId === "hitting_sibling" && !transfer && parentTurns === 0 && (
           <p className="-mt-1.5 px-1 text-[13px] text-muted">If anyone is unsafe, focus on safety before practicing what to say.</p>
         )}
