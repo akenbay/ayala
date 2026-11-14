@@ -10,7 +10,6 @@ import { detectCrisis, type Crisis } from "@/lib/safety";
 import { newId, ownMomentLocked, phrasesFor, update, useStore } from "@/lib/storage";
 import { CrisisCard } from "@/components/CrisisCard";
 import { Arrow, Back, Bolt, Info } from "@/components/icons";
-import { Spinner } from "@/components/ui";
 import { HomeCheck } from "@/components/PhraseBank";
 
 export default function HelpNowPage() {
@@ -61,11 +60,13 @@ function HelpNow() {
       return;
     }
     const ready = matchScript(t);
-    if (ready) {
+    // "I yelled" always gets the repair script: it is a different kind of help than a direction.
+    if (ready?.id === "repair") {
       open(ready);
       return;
     }
-    // Nothing ready fits: ask for words written for this moment, checked on the server.
+    // Ask for words written for this exact moment first ("teeth before bed" is about teeth, not bedtime).
+    // A ready script is the fallback when the AI is slow, offline or its words fail a check.
     setBusy(true);
     let s: HelpScript | null = null;
     try {
@@ -82,10 +83,10 @@ function HelpNow() {
       }
       s = d.script ?? null;
     } catch {
-      /* offline or slow: fall through to the general script */
+      /* offline or slow: fall through to a ready script */
     }
     setBusy(false);
-    open(s ?? generalScript(t));
+    open(s ?? ready ?? generalScript(t));
   }
 
   function rate(v: boolean) {
@@ -273,7 +274,7 @@ function HelpNow() {
             className="h-12 min-w-0 flex-1 rounded-xl border-[1.5px] border-field bg-white px-3.5 text-base outline-none focus:border-ink"
           />
           <button type="button" className="btn-primary h-12 shrink-0 px-5" onClick={openTyped} disabled={!typed.trim() || busy}>
-            {busy ? <Spinner /> : "Help"}
+            {busy ? <span aria-label="Writing" className="h-5 w-5 animate-spin rounded-full border-2 border-ink border-t-transparent" /> : "Help"}
           </button>
         </div>
         {busy && <p className="text-[14px] text-muted">Writing words for your moment…</p>}
