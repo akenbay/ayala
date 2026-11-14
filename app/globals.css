@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fbf8f3;
+  --color-ink: #1f2a37;
+  --color-muted: #5b6575;
+  --color-line: #e7e1d7;
+  --color-calm: #2f6f6a;
+  --color-calm-soft: #e3f0ee;
+  --color-sun: #f4b860;
+  --color-sun-soft: #fdf1dc;
+  --color-good: #2f7d4f;
+  --color-good-soft: #e3f3e8;
+  --color-bad: #b4483c;
+  --color-bad-soft: #fbe7e4;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(31,42,55,0.04)];
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 bg-calm text-white hover:bg-[#275e5a];
+}
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 border border-line bg-white text-ink hover:bg-cream;
+}
+@utility chip {
+  @apply rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition;
+  &[aria-pressed="true"] {
+    @apply border-calm bg-calm-soft text-calm;
+  }
+}
+
+mark.good {
+  @apply rounded bg-good-soft px-0.5 text-good;
+}
+mark.bad {
+  @apply rounded bg-bad-soft px-0.5 text-bad;
+}
