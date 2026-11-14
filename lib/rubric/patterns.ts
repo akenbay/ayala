@@ -53,7 +53,7 @@ export const PHYSICAL_PUNISHMENT =
 
 /** Empty or outsized threats. */
 export const EMPTY_THREATS =
-  /\b(or else|leav(e|ing) you (here|behind|alone)|leave without you|go without you|forever|never (ever )?(again|see|get|go|come|play)|i'?ll tell (daddy|mommy|dad|mom|santa|the police|grandma)|the police|police will|santa (won'?t|isn'?t|will not|is watching)|no (christmas|birthday|presents|toys ever)|monster|throw (all )?(your|the|it|them) .{0,20}(away|in the trash|out)|give (all )?your toys away|i'?ll (take|throw) (all|every)|you'?ll be sorry|i'?m (leaving|going) (now )?without you|get out of my sight)\b/i;
+  /\b(or else|leav(e|ing) you (here|behind|alone)|leave without you|go without you|forever|never (ever )?(again|see|get|go|come|play)|no [a-z' ]{1,24}?ever again|i'?ll tell (daddy|mommy|dad|mom|santa|the police|grandma)|the police|police will|santa (won'?t|isn'?t|will not|is watching)|no (christmas|birthday|presents|toys ever)|monster|throw (all )?(your|the|it|them) .{0,20}(away|in the trash|out)|give (all )?your toys away|i'?ll (take|throw) (all|every)|you'?ll be sorry|i'?m (leaving|going) (now )?without you|get out of my sight)\b/i;
 
 /** Bribes and backing down. */
 export const BRIBE =

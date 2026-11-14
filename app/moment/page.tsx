@@ -108,7 +108,10 @@ export default function MomentPage() {
         />
         <div className="flex flex-wrap gap-2">
           {EXAMPLES.slice(1).map((ex) => (
-            <button key={ex} type="button" onClick={() => setSituation(ex)} className="rounded-full bg-white px-3 py-1.5 text-left text-[13px] font-semibold">
+            <button key={ex} type="button" onClick={() => {
+                setSituation(ex);
+                setError("");
+              }} className="rounded-full bg-white px-3 py-1.5 text-left text-[13px] font-semibold">
               {ex}
             </button>
           ))}

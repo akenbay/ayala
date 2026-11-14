@@ -36,7 +36,8 @@ export default function Home() {
       key: "learn",
       title: `Learn: ${focusLesson.title.toLowerCase()}`,
       detail: "A 2 minute idea from CDC guidance.",
-      done: read.includes(focusLesson.id),
+      // Practicing also counts, so the path never sends a parent backwards when their focus skill changes.
+      done: read.includes(focusLesson.id) || real.some((a) => a.kind === "first"),
       go: () => openLessonCard(focusLesson.id),
       cta: "Open the lesson",
     },
@@ -346,7 +347,7 @@ export default function Home() {
         </summary>
         <ol className="anim-fade-down mt-3 list-decimal space-y-2 rounded-2xl bg-white p-5 pl-9 text-left text-[15px] leading-relaxed text-soft-ink">
           <li>Tap <b>Get my plan in 60 seconds</b>: 7 taps shape Sam (age, boy or girl, temperament), your first focus and a reminder time.</li>
-          <li>Or open a lesson under <b>Learn, then practice</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
+          <li>Or open a lesson under <b>All lessons</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
           <li>Reply to Sam (type or tap the mic). Sam&apos;s face and status show how it&apos;s going; the practice ends when Sam goes along, melts down or gets their way.</li>
           <li><b>See my score</b>: one thing to keep, one to change (with its CDC page), your own words improved and re-scored. Retry, see the gain, then a new situation with no tips.</li>
           <li><b>Your own moment</b> or <b>Today I lost it</b>. Typing &ldquo;I can&apos;t do this anymore&rdquo; shows the crisis safety screen.</li>

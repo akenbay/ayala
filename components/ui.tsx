@@ -13,11 +13,12 @@ export function scoreTone(n: number): { text: string; bg: string; ring: string; 
 }
 
 export function ScoreRing({ value, size = 168, sub = "out of 100" }: { value: number; size?: number; sub?: string | null }) {
-  const stroke = size >= 120 ? 14 : 8;
+  const big = size >= 150; // room for the number and the "out of 100" line
+  const mid = !big && size >= 100;
+  const stroke = big ? 14 : mid ? 11 : 8;
   const r = (size - stroke) / 2 - 1;
   const c = 2 * Math.PI * r;
   const tone = scoreTone(value);
-  const big = size >= 120;
   return (
     <div className="relative inline-grid place-items-center" style={{ width: size, height: size }} role="img" aria-label={`Score ${value} out of 100`}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
@@ -37,7 +38,7 @@ export function ScoreRing({ value, size = 168, sub = "out of 100" }: { value: nu
         />
       </svg>
       <div className="absolute flex flex-col items-center leading-none">
-        <span className={`font-extrabold tracking-[-0.03em] tabular-nums ${big ? "text-[60px]" : size >= 80 ? "text-[28px]" : "text-xl"}`}>
+        <span className={`font-extrabold tracking-[-0.03em] tabular-nums ${big ? "text-[60px]" : mid ? "text-[40px]" : size >= 80 ? "text-[28px]" : "text-xl"}`}>
           <CountUp value={value} />
         </span>
         {big && sub && <span className="mt-1 text-sm font-semibold text-muted">{sub}</span>}
@@ -95,12 +96,13 @@ export function DimensionBars({ card, compare }: { card: Pick<Scorecard, "byDime
   const dims = DIMENSIONS.filter((d) => card.byDimension[d].max > 0);
   const pct = (d: Dimension) => Math.round((card.byDimension[d].earned / card.byDimension[d].max) * 100);
   const min = Math.min(...dims.map(pct));
+  const weakest = dims.find((d) => pct(d) === min); // one skill to practice next, even on a tie
   return (
     <ul className="space-y-3.5">
       {dims.map((d) => {
         const v = card.byDimension[d];
         const p = pct(d);
-        const weak = p === min && min < 100;
+        const weak = d === weakest && min < 100;
         const before = compare ? Math.round((compare.byDimension[d].earned / Math.max(1, compare.byDimension[d].max)) * 100) : null;
         const delta = compare ? v.earned - compare.byDimension[d].earned : 0;
         return (

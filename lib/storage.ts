@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { ScenarioId } from "./scenarios";
-import { SCENARIO_LIST } from "./scenarios";
+import { SCENARIOS, SCENARIO_LIST } from "./scenarios";
 import { DIMENSIONS, DIMENSION_LABELS, type Dimension, type Scorecard } from "./rubric/types";
 import { buildScorecard } from "./rubric/score";
 
@@ -200,12 +200,13 @@ export function buildPlan(attempts: Attempt[], fallbackFocus?: Dimension): PlanD
   const focus = weakestDimension(attempts) ?? fallbackFocus ?? "emotional_response";
   const order = SCENARIO_LIST.map((s) => s.id);
   const start = attempts.length ? order.indexOf(attempts[attempts.length - 1].scenarioId) : 0;
-  return Array.from({ length: 7 }, (_, i) => ({
-    day: i + 1,
-    scenarioId: order[(Math.max(0, start) + i) % order.length],
-    focus: i % 3 === 2 ? DIMENSIONS[(DIMENSIONS.indexOf(focus) + 1) % DIMENSIONS.length] : focus,
-    done: false,
-  }));
+  return Array.from({ length: 7 }, (_, i) => {
+    const scenarioId = order[(Math.max(0, start) + i) % order.length];
+    const wanted = i % 3 === 2 ? DIMENSIONS[(DIMENSIONS.indexOf(focus) + 1) % DIMENSIONS.length] : focus;
+    // Never aim a day at a skill its moment doesn't score (naming the feeling in a safety-first moment).
+    const scored = SCENARIOS[scenarioId].weights[wanted] !== 0;
+    return { day: i + 1, scenarioId, focus: scored ? wanted : ("boundaries" as Dimension), done: false };
+  });
 }
 
 export function focusLabel(d: Dimension): string {
@@ -255,7 +256,8 @@ function icsDate(d: Date): string {
 
 /** A calendar file with a daily 5 minute practice for the next 7 days, at a local time. */
 export function reminderIcs(time: string, url: string, focusTip: string): string {
-  const [h, m] = time.split(":").map(Number);
+  // An emptied time field falls back to the early evening instead of producing an invalid file.
+  const [h, m] = (/^\d{1,2}:\d{2}/.test(time) ? time : "19:00").split(":").map(Number);
   const start = new Date();
   start.setHours(h, m, 0, 0);
   if (start.getTime() < Date.now()) start.setDate(start.getDate() + 1);
@@ -267,7 +269,7 @@ export function reminderIcs(time: string, url: string, focusTip: string): string
     "PRODID:-//Ayala//Practice//EN",
     "BEGIN:VEVENT",
     `UID:${newId()}@ayala`,
-    `DTSTAMP:${icsDate(new Date())}`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`, // the spec wants UTC here
     `DTSTART:${icsDate(start)}`,
     `DTEND:${icsDate(end)}`,
     "RRULE:FREQ=DAILY;COUNT=7",

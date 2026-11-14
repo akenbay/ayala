@@ -152,6 +152,7 @@ export default function PracticePage() {
       }
     }
     if (!store.current) router.replace("/");
+    else if (store.current === "custom" && !store.custom?.situation) router.replace("/moment");
     else if (!allowed) router.replace("/pricing?from=" + store.current);
   }, [store, allowed, router]);
 
@@ -188,7 +189,9 @@ export default function PracticePage() {
   ];
   // The opening depends on the scenario, which is known only after the store loads.
   const shown = msgs.length === 0 ? openingFor(false) : msgs;
-  const openerText = shown.find((m) => m.role === "child")?.text;
+  // For the parent's own moment, Sam's first line is written on the server; hold replies until it arrives.
+  const openerPending = scenarioId === "custom" && kind !== "transfer" && !customOpener;
+  const openerText = openerPending ? undefined : shown.find((m) => m.role === "child")?.text;
 
   function startChat(k: AttemptKind) {
     setKind(k);
@@ -308,7 +311,7 @@ export default function PracticePage() {
                 ? {
                     label: "Your tip",
                     text: firstCoach.change.quote
-                      ? `Instead of "${firstCoach.change.quote}": ${firstCoach.change.why.charAt(0).toLowerCase()}${firstCoach.change.why.slice(1)}`
+                      ? `Instead of "${firstCoach.change.quote}": ${/^(Sam|I)\b/.test(firstCoach.change.why) ? firstCoach.change.why : firstCoach.change.why.charAt(0).toLowerCase() + firstCoach.change.why.slice(1)}`
                       : firstCoach.change.why,
                   }
                 : kind === "retry" && tip
@@ -323,6 +326,7 @@ export default function PracticePage() {
             }
             msgs={shown}
             setMsgs={setMsgs}
+            waiting={openerPending}
             idea={
               kind === "first" ? ideaFromSam : kind === "retry" ? (firstCoach?.rewrite?.text ?? IDEAS[scenarioId].retry) : null
             }
@@ -460,6 +464,7 @@ function useVoice(onText: (t: string) => void) {
   const supported = useSyncExternalStore(noop, () => Boolean(recognizerCtor()), () => false);
   const [listening, setListening] = useState(false);
   const rec = useRef<Recognizer | null>(null);
+  useEffect(() => () => rec.current?.stop(), []);
   function toggle() {
     if (listening) {
       rec.current?.stop();
@@ -481,8 +486,12 @@ function useVoice(onText: (t: string) => void) {
     r.onend = () => setListening(false);
     r.onerror = () => setListening(false);
     rec.current = r;
-    setListening(true);
-    r.start();
+    try {
+      r.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
   }
   return { supported, listening, toggle };
 }
@@ -520,10 +529,11 @@ function Chat(props: {
   ideaLabel: string;
   onFinish: () => void;
   ownSituation?: string;
+  waiting?: boolean; // Sam's first line is still loading
   child?: { sex?: "boy" | "girl" | "unsaid"; temperament?: "calm" | "active" | "fiery" | "sensitive" };
   initialText?: string;
 }) {
-  const { scenarioId, age, context, transfer, banner, msgs, setMsgs, idea, ideaLabel, onFinish, ownSituation, child, initialText } = props;
+  const { scenarioId, age, context, transfer, banner, msgs, setMsgs, idea, ideaLabel, onFinish, ownSituation, child, initialText, waiting = false } = props;
   const [text, setText] = useState(initialText ?? "");
   const [busy, setBusy] = useState<"" | "score" | "child">("");
   const [error, setError] = useState("");
@@ -533,7 +543,8 @@ function Chat(props: {
   const [ageOpen, setAgeOpen] = useState(false);
   const [quick, setQuick] = useState(false); // Sam is using prewritten lines because the AI did not answer
   const voice = useVoice((said) => setText((t) => (t ? `${t} ${said}` : said).slice(0, MAX_CHARS)));
-  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const wasBusy = useRef(false);
   const parentTurns = msgs.filter((m) => m.role === "parent" && !m.setup).length;
   const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
   const ended = !busy && parentTurns > 0 && ((lastState && ENDING_STATES.includes(lastState)) || parentTurns >= MAX_PARENT_TURNS);
@@ -549,9 +560,15 @@ function Chat(props: {
 
 
 
+  // The reply box is disabled while Sam answers, which drops focus. Give it back so the parent can keep typing.
+  useEffect(() => {
+    if (wasBusy.current && !busy) inputRef.current?.focus({ preventScroll: true });
+    wasBusy.current = busy !== "";
+  }, [busy]);
+
   async function send() {
     const t = text.trim();
-    if (!t || !canType || busy) return;
+    if (!t || !canType || busy || waiting) return;
     setError("");
     setShowIdea(false);
     setPending(t);
@@ -584,25 +601,28 @@ function Chat(props: {
       setBusy("child");
       const setupLine = next.find((m) => m.setup)?.text;
       const history = next.filter((m) => !m.setup).map((m) => ({ role: m.role === "child" ? "assistant" : "user", content: m.text }));
-      const r = await fetch("/api/toddler", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          scenarioId,
-          age,
-          transfer,
-          context,
-          history,
-          situation: ownSituation,
-          child,
-          setup: setupLine,
-          passed: Object.fromEntries((data as Scorecard).checks.map((c) => [c.id, c.passed])),
-          total: (data as Scorecard).total,
-        }),
-      });
-      const d = r.ok
-        ? ((await r.json()) as { reply: string; state: SamState; degraded?: boolean })
-        : { reply: "Hmph.", state: "resisting" as SamState, degraded: true };
+      // The parent's reply is already scored and shown, so Sam always answers: a failed request
+      // gets a stand-in line instead of leaving the conversation stuck without a reply.
+      let d: { reply: string; state: SamState; degraded?: boolean } = { reply: "Hmph.", state: "resisting", degraded: true };
+      try {
+        const r = await fetch("/api/toddler", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            scenarioId,
+            age,
+            transfer,
+            context,
+            history,
+            situation: ownSituation,
+            child,
+            setup: setupLine,
+            passed: Object.fromEntries((data as Scorecard).checks.map((c) => [c.id, c.passed])),
+            total: (data as Scorecard).total,
+          }),
+        });
+        if (r.ok) d = (await r.json()) as typeof d;
+      } catch {}
       setQuick(Boolean(d.degraded));
       setMsgs((m) => [...m, { role: "child", text: d.reply, state: d.state }]);
     } catch {
@@ -664,7 +684,7 @@ function Chat(props: {
 
         {msgs.map((m, i) =>
           m.role === "child" ? (
-            <SamBubble key={i} text={m.text} state={m.state} opener={!m.state} />
+            <SamBubble key={i} text={m.text} state={m.state} opener={!m.state} typing={waiting && !m.state} />
           ) : m.setup ? (
             <div key={i} className="anim-bubble flex max-w-[86%] flex-col items-end gap-1 self-end">
               <span className="pr-1 text-[13px] text-muted">You, a moment ago</span>
@@ -720,7 +740,6 @@ function Chat(props: {
             </div>
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       <footer className="sticky bottom-0 -mx-4 border-t border-line bg-white px-4 pb-3 pt-2.5 sm:mx-0 sm:rounded-t-2xl sm:border-x">
@@ -741,7 +760,7 @@ function Chat(props: {
         {canType && (
           <>
             <div className="flex min-h-6 items-center justify-between">
-              {idea && parentTurns === 0 && !showIdea ? (
+              {idea && parentTurns === 0 && !showIdea && !waiting ? (
                 <button type="button" onClick={() => setShowIdea(true)} className="h-8 text-[15px] font-semibold underline underline-offset-[3px]">
                   Need an idea?
                 </button>
@@ -772,6 +791,7 @@ function Chat(props: {
               </label>
               <textarea
                 id="reply"
+                ref={inputRef}
                 rows={2}
                 value={text}
                 maxLength={MAX_CHARS}
@@ -804,7 +824,7 @@ function Chat(props: {
                 type="button"
                 aria-label="Send"
                 onClick={send}
-                disabled={!text.trim() || busy !== ""}
+                disabled={!text.trim() || busy !== "" || waiting}
                 className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-orange text-ink transition duration-150 hover:bg-orange-hover active:scale-95 disabled:bg-track disabled:text-muted"
               >
                 {busy === "score" ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink border-t-transparent" /> : <ArrowUp size={22} />}
@@ -1128,8 +1148,9 @@ function UsefulAsk({ attemptId }: { attemptId: string }) {
 function Paywall({ onContinue }: { onContinue: () => void }) {
   const store = useStore();
   if (!store) return null;
-  const focus = weakestDimension(store.attempts) ?? store.profile?.focus ?? "emotional_response";
-  const plan = store.plan.length ? store.plan : buildPlan(store.attempts, focus);
+  const weakest = weakestDimension(store.attempts) ?? store.profile?.focus ?? "emotional_response";
+  const plan = store.plan.length ? store.plan : buildPlan(store.attempts, weakest);
+  const focus = (plan.find((d) => !d.done) ?? plan[0]).focus;
   if (store.unlocked)
     return (
       <div className="flex flex-col gap-4 py-6">

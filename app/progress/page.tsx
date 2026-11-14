@@ -19,7 +19,7 @@ function Sparkline({ values }: { values: number[] }) {
   const pts = values.map((v, i) => [4 + (i / (values.length - 1)) * (w - 8), h - 4 - (v / 100) * (h - 8)]);
   const last = pts[pts.length - 1];
   return (
-    <svg width="100%" height="40" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={`Scores over ${values.length} practices`}>
+    <svg width="100%" height="40" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" overflow="visible" role="img" aria-label={`Scores over ${values.length} practices`}>
       <polyline
         points={pts.map((p) => p.join(",")).join(" ")}
         fill="none"
@@ -29,7 +29,8 @@ function Sparkline({ values }: { values: number[] }) {
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
-      <circle cx={last[0]} cy={last[1]} r={4} fill="#2E7D4F" />
+      {/* A zero-length round line stays a round dot even though the chart is stretched. */}
+      <line x1={last[0]} y1={last[1]} x2={last[0]} y2={last[1]} stroke="#2E7D4F" strokeWidth={9} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -58,7 +59,7 @@ function Reminder({ tip, defaultTime }: { tip: string; defaultTime?: string }) {
     a.href = url;
     a.download = "ayala-daily-practice.ics";
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // Safari needs the link alive until the download starts
     setSaved(true);
   }
   return (
@@ -73,7 +74,10 @@ function Reminder({ tip, defaultTime }: { tip: string; defaultTime?: string }) {
         id="remindTime"
         type="time"
         value={time}
-        onChange={(e) => setTime(e.target.value)}
+        onChange={(e) => {
+          setTime(e.target.value);
+          setSaved(false);
+        }}
         className="h-11 rounded-xl border-[1.5px] border-field bg-cream px-2.5 text-base font-semibold"
       />
       <button
