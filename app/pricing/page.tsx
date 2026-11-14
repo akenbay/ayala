@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PRICE_LABEL, TEST_CARD } from "@/lib/pricing";
+import { GUARANTEE, PLANS, TEST_CARD, type PlanId } from "@/lib/pricing";
 import { update, useStore } from "@/lib/storage";
 import { Spinner } from "@/components/ui";
 
@@ -16,6 +16,7 @@ const FEATURES: [string, string][] = [
 export default function PricingPage() {
   const unlocked = useStore()?.unlocked ?? false;
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<PlanId>("annual");
   const [msg, setMsg] = useState<{ tone: "good" | "bad" | "info"; text: string } | null>(null);
 
   // Handle the return from Stripe Checkout once on mount.
@@ -53,7 +54,7 @@ export default function PricingPage() {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch("/api/checkout", { method: "POST" });
+      const r = await fetch("/api/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ plan }) });
       const d = await r.json();
       if (d.url) {
         window.location.href = d.url;
@@ -92,15 +93,34 @@ export default function PricingPage() {
       )}
 
       <div className="card shadow-[inset_0_0_0_2px_#000]">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-sm text-muted">Plus</p>
-            <p className="text-5xl font-extrabold tracking-tight">
-              $12.99<span className="text-base font-normal text-muted">/month</span>
-            </p>
+        <fieldset>
+          <legend className="text-sm font-semibold text-muted">Choose your plan</legend>
+          <div className="mt-2 grid gap-2.5">
+            {(["annual", "monthly"] as PlanId[]).map((id) => {
+              const p = PLANS[id];
+              const on = plan === id;
+              return (
+                <label
+                  key={id}
+                  className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] px-4 py-3.5 ${on ? "border-ink bg-white shadow-[0_0_0_1px_#000]" : "border-field bg-cream"}`}
+                >
+                  <input type="radio" name="plan" value={id} checked={on} onChange={() => setPlan(id)} className="h-5 w-5 accent-black" />
+                  <span className="flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-[17px] font-extrabold">{id === "annual" ? "Yearly" : "Monthly"}</span>
+                      {id === "annual" && <span className="rounded-full bg-orange px-2.5 py-0.5 text-xs font-extrabold">Best value</span>}
+                    </span>
+                    <span className="block text-sm text-muted">{p.note}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-lg font-extrabold">{p.label}</span>
+                    {id === "annual" && <span className="block text-xs text-muted">{p.perMonth}</span>}
+                  </span>
+                </label>
+              );
+            })}
           </div>
-          <p className="text-right text-xs text-muted">Cancel anytime.<br />Renews monthly at {PRICE_LABEL}.</p>
-        </div>
+        </fieldset>
         <ul className="mt-4 space-y-3">
           {FEATURES.map(([t, d]) => (
             <li key={t} className="flex gap-3">
@@ -124,8 +144,16 @@ export default function PricingPage() {
           </div>
         ) : (
           <button className="btn-primary mt-5 w-full" onClick={checkout} disabled={busy}>
-            {busy ? <Spinner /> : "Get Plus"}
+            {busy ? <Spinner /> : `Get Plus, ${PLANS[plan].label}`}
           </button>
+        )}
+        {!unlocked && (
+          <ul className="mt-3 space-y-1 text-center text-sm text-soft-ink">
+            <li>
+              <b className="text-ink">{GUARANTEE}.</b> Not helpful? Get a full refund.
+            </li>
+            <li>No account or email needed. The practice is free.</li>
+          </ul>
         )}
         <div className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm">
           <b>Test mode, no real charge.</b> Use card <code className="font-mono font-semibold">{TEST_CARD}</code>, any future date, any CVC
@@ -143,7 +171,7 @@ export default function PricingPage() {
             <b className="text-ink">Positive Parenting Solutions:</b> $14.99/month for courses and coaching.
           </li>
           <li>
-            <b className="text-ink">Ayala Plus:</b> $12.99/month to practice the exact moment and see which words worked.
+            <b className="text-ink">Ayala Plus:</b> $79/year or $12.99/month to practice the exact moment and see which words worked.
           </li>
         </ul>
       </div>

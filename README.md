@@ -13,13 +13,13 @@ Built for Zimran Business Cup 2026 (Skills track).
 ## Try it in 60 seconds (for the jury)
 
 1. Open the link. No sign up.
-2. Leave "Leaving the playground" selected, pick an age, press **Start practicing**.
-3. Read the example script (its score and tags are computed live by the same rubric), press **I'm ready to practice**.
-4. Type anything you like, or press **Try a sample answer** (a labeled weak answer that runs through the real pipeline). Press **Say it**. The toddler replies. Reply once more or press **See my score**.
-5. Read the scorecard: every point won or lost quotes your words. Press **Try again with what you learned**.
-6. See the side by side comparison, then **Try a new situation on my own** (no script).
-7. Open **Progress** for your history, weakest skill and 7 day plan.
-8. Open **Plus**, press **Get Plus**, pay with Stripe test card **4242 4242 4242 4242**, any future date, any CVC. The locked scenario and plan days unlock.
+2. Tap **Leaving the playground**. The practice opens right away (age defaults to 3; change it on the home page).
+3. Type what you would really say, or tap **Need an idea?** for a labeled sample that runs through the real pipeline. Sam, the practice toddler, replies. Answer once more or press **See my score**.
+4. Read the score: tap any highlighted phrase to see why it helped or hurt, and every point quotes your own words. **See full breakdown** shows all 13 checks with their CDC source.
+5. Press **Try again with this tip**, then see your before and after.
+6. Press **Try a new situation**: a new moment with no tips, to show the skill transfers.
+7. Open **Your progress** for the 7 day plan, skills and a daily calendar reminder. **See a sample week (demo)** shows labeled demo data.
+8. Open **Plus**, pick Yearly ($79, marked Best value) or Monthly ($12.99), press **Get Plus**, pay with Stripe test card **4242 4242 4242 4242**, any future date, any CVC. The locked scenario and plan days unlock.
 
 Type the same sentence twice: you get the same score (temperature 0 where supported, plus a result cache keyed on scenario, age and text).
 
@@ -78,7 +78,7 @@ The test set in `tests/rubric.test.ts` covers the guide's cases: low, middle and
 ```
 app/
   page.tsx              landing and quiz
-  practice/page.tsx     script, chat, scorecard, retry, compare, transfer
+  practice/page.tsx     chat, score, retry, before and after, transfer
   progress/page.tsx     history, weakest skill, 7 day plan
   pricing/page.tsx      paywall (Stripe test mode)
   api/score             POST: scores one parent message
@@ -131,5 +131,6 @@ Keys live only in server environment variables. Nothing secret is committed.
 ## Beyond the 10 slides
 
 - **Why code first:** the jury can read `lib/rubric/codeChecks.ts` and see that every point comes from a rule or a quote-verified model judgment.
-- **Price:** $12.99/month, below Positive Parenting Solutions ($14.99/month) and Good Inside ($279/year), positioned as practice rather than content.
+- **Price:** $79/year (shown first, marked Best value, $6.58/month) or $12.99/month, with a 14 day money back guarantee. Below Good Inside ($279/year or $84 per 3 months) and Positive Parenting Solutions ($14.99/month), positioned as practice rather than content. The price is visible before any email or account.
+- **Acquisition:** one link per pain point, so each ad lands in its own moment: `/practice?s=playground`, `/practice?s=bedtime`, `/practice?s=hitting` (Plus). This follows the pain-specific landing, onboarding, paywall funnel used by Good Inside.
 - **Growth path:** more moments (getting dressed, car seat, screen time), then older ages, then co-parent practice.

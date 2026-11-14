@@ -1,8 +1,6 @@
 import Stripe from "stripe";
 import { clientIp, json, rateLimit } from "@/lib/server";
-import { PRICE_CENTS } from "@/lib/pricing";
-
-
+import { PLANS, isPlanId } from "@/lib/pricing";
 
 function origin(req: Request): string {
   const h = req.headers;
@@ -15,6 +13,12 @@ export async function POST(req: Request) {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return json({ demo: true });
   if (!key.startsWith("sk_test_")) return json({ error: "Only Stripe test mode is allowed here." }, 500);
+  let planId: keyof typeof PLANS = "monthly";
+  try {
+    const body = (await req.json().catch(() => ({}))) as { plan?: unknown };
+    if (isPlanId(body.plan)) planId = body.plan;
+  } catch {}
+  const plan = PLANS[planId];
   try {
     const stripe = new Stripe(key);
     const base = origin(req);
@@ -25,10 +29,10 @@ export async function POST(req: Request) {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: PRICE_CENTS,
-            recurring: { interval: "month" },
+            unit_amount: plan.cents,
+            recurring: { interval: plan.interval },
             product_data: {
-              name: "Ayala Plus",
+              name: planId === "annual" ? "Ayala Plus (annual)" : "Ayala Plus",
               description: "All scenarios, the full 7 day practice plan, saved progress.",
             },
           },

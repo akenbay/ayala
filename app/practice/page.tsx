@@ -33,6 +33,18 @@ import { Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon
 
 const MAX_PARENT_TURNS = 2;
 
+const LINK_ALIASES: Record<string, ScenarioId> = {
+  playground: "leaving_playground",
+  leaving: "leaving_playground",
+  leaving_playground: "leaving_playground",
+  bedtime: "bedtime_refusal",
+  sleep: "bedtime_refusal",
+  bedtime_refusal: "bedtime_refusal",
+  hitting: "hitting_sibling",
+  siblings: "hitting_sibling",
+  hitting_sibling: "hitting_sibling",
+};
+
 /** Labeled sample answers behind "Need an idea?". They run through the real scoring. */
 const IDEAS: Record<ScenarioId, { first: string; retry: string }> = {
   leaving_playground: {
@@ -107,6 +119,19 @@ export default function PracticePage() {
 
   useEffect(() => {
     if (!store) return;
+    // Pain-specific links from ads, e.g. /practice?s=bedtime, open straight into that moment.
+    const q = new URLSearchParams(window.location.search).get("s");
+    if (q) {
+      window.history.replaceState(null, "", "/practice");
+      const id = LINK_ALIASES[q.toLowerCase()];
+      if (id) {
+        update((st) => {
+          st.current = id;
+          st.currentPlanDay = null;
+        });
+        return;
+      }
+    }
     if (!store.current) router.replace("/");
     else if (!allowed) router.replace("/pricing?from=" + store.current);
   }, [store, allowed, router]);

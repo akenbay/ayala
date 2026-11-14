@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SCENARIOS } from "@/lib/scenarios";
 import { DIMENSION_LABELS, DIMENSIONS } from "@/lib/rubric/types";
-import { PRICE_LABEL } from "@/lib/pricing";
+import { GUARANTEE, PLANS } from "@/lib/pricing";
 import { FOCUS_TIPS, buildPlan, demoWeekAttempts, focusLabel, reminderIcs, update, useStore, weakestDimension } from "@/lib/storage";
 import { Arrow, Bell, Calendar, Check, ChevronDown } from "@/components/icons";
 
@@ -323,7 +323,7 @@ export default function ProgressPage() {
             <span className="text-[17px] font-extrabold">All scenarios and the full 7 day plan</span>
           </div>
           <p className="text-base text-soft-ink">
-            <b className="text-ink">{PRICE_LABEL}.</b> Cancel anytime.
+            <b className="text-ink">From {PLANS.annual.perMonth}</b> billed yearly, or {PLANS.monthly.label}. {GUARANTEE}.
           </p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <span className="text-[13px] text-muted">Test mode, no real charge</span>
