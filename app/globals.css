@@ -1,34 +1,35 @@
 @import "tailwindcss";
 
-/* Ayala palette (Clownfish): cream, three oranges, black. Green is functional only ("helped"). */
-/* Ayala palette (Amber): Floral White, Papaya Whip, Morning Butter, Sunflower Gold, Amber Flame.
-   Green and red stay as functional colors only ("helped" and "hurt"). */
+/* Ayala tokens: warm storybook direction. Saturated amber is kept for primary actions and one focal visual.
+   Green and clay red are functional only ("helped" and "hurt"). */
 @theme {
-  --color-cream: #fffaf0; /* Floral White: page background */
-  --color-paper: #fffdf8;
-  --color-ink: #1c1608; /* warm near-black for text and primary buttons */
-  --color-muted: #6b5f45;
-  --color-soft-ink: #463c27;
-  --color-line: #f3e4c3;
-  --color-field: #e9d3a1;
-  --color-track: #f6ead0;
-  --color-orange: #ffb41d; /* Amber Flame: main accent */
-  --color-deep: #ffc146; /* Sunflower Gold */
-  --color-butter: #ffd581; /* Morning Butter */
-  --color-red: #e5484d;
-  --color-peach: #ffeecd; /* Papaya Whip */
-  --color-peach-soft: #fff4dc;
-  /* Legacy names kept so every page reskins from one place. */
-  --color-calm: #1c1608;
-  --color-calm-soft: #ffeecd;
-  --color-sun: #ffb41d;
-  --color-sun-soft: #ffeecd;
-  --color-good: #1f5a37;
-  --color-good-line: #2e7d4f;
-  --color-good-soft: #dcefe2;
-  --color-bad: #b42318;
-  --color-bad-soft: #fde8e4;
+  --color-cream: #fffaf0; /* canvas */
+  --color-paper: #ffffff; /* surfaces */
+  --color-ink: #30251f; /* main text */
+  --color-muted: #5f544a; /* secondary text */
+  --color-soft-ink: #4a3f36;
+  --color-line: #e5d8c6; /* dividers */
+  --color-field: #d9c7ad;
+  --color-track: #f1e6d4;
+  --color-orange: #ffc146; /* primary action */
+  --color-orange-hover: #ffb41d;
+  --color-deep: #ffb41d;
+  --color-butter: #ffd581;
+  --color-amber-text: #925600; /* amber emphasis text, AA on cream */
+  --color-red: #c2563d; /* "hurt" underline */
+  --color-peach: #fff0d8; /* soft amber: scenes and situation cards */
+  --color-peach-soft: #fff6e6;
+  --color-calm: #30251f;
+  --color-calm-soft: #fff0d8;
+  --color-sun: #ffc146;
+  --color-sun-soft: #fff0d8;
+  --color-good: #2a613d;
+  --color-good-line: #3c8a57;
+  --color-good-soft: #e9f2e7;
+  --color-bad: #8b4939;
+  --color-bad-soft: #ffe5db;
   --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
 }
 
 html {
@@ -53,22 +54,30 @@ summary:focus-visible {
 @utility card {
   @apply rounded-2xl bg-white p-5;
 }
+@utility shadow-soft {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+}
+@utility font-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 
 @utility label-caps {
   @apply text-[13px] font-bold uppercase tracking-[0.04em] text-muted;
 }
 
 @utility btn {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold transition active:scale-[0.97] duration-150 disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-base font-bold text-cream transition hover:bg-[#3a2f17] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-orange px-6 py-3 text-base font-bold text-ink transition duration-150 hover:bg-orange-hover active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40;
 }
 @utility btn-orange {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-orange px-5 py-2.5 text-[15px] font-bold text-ink transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-orange px-5 py-2.5 text-[15px] font-bold text-ink transition hover:brightness-95 active:scale-[0.97] duration-150 disabled:opacity-50;
 }
 @utility btn-ghost {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-ink bg-transparent px-5 py-2.5 text-base font-bold text-ink transition hover:bg-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-ink bg-transparent px-5 py-2.5 text-base font-bold text-ink transition hover:bg-white active:scale-[0.97] duration-150 disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility chip {
   @apply min-h-11 rounded-full border-[1.5px] border-field bg-white px-4 py-2 text-[15px] font-semibold text-ink transition;
@@ -113,10 +122,77 @@ button.mark-bad[aria-pressed="true"] {
 .shimmer {
   animation: ayala-shimmer 1.4s ease-in-out infinite;
 }
+/* ---------- Motion: calm and quick. All of it switches off with reduced motion. ---------- */
+@keyframes ayala-bubble {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ayala-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ayala-fade-down {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ayala-pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ayala-tilt {
+  0%, 100% { transform: rotate(0); }
+  40% { transform: rotate(-4deg); }
+}
+@keyframes ayala-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes ayala-tear {
+  0% { opacity: 0; transform: translateY(-2px); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+@keyframes ayala-sparkle {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4) rotate(0); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1) rotate(45deg); }
+}
+@keyframes ayala-ring {
+  from { stroke-dashoffset: var(--ring-c); }
+}
+.anim-bubble { animation: ayala-bubble 180ms ease-out both; }
+.anim-rise { animation: ayala-rise 260ms ease-out both; }
+.anim-fade-down { animation: ayala-fade-down 150ms ease-out both; }
+.anim-pop { animation: ayala-pop 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.anim-tilt { animation: ayala-tilt 420ms ease-in-out 1; transform-origin: 50% 80%; }
+.anim-bob { animation: ayala-bob 3.2s ease-in-out infinite; }
+.anim-tear { animation: ayala-tear 1.6s ease-in infinite; }
+.anim-sparkle { animation: ayala-sparkle 700ms ease-out both; }
+.anim-ring { animation: ayala-ring 600ms ease-out both; }
+.sam-part { transition: opacity 250ms ease, transform 250ms ease; }
+
 @media (prefers-reduced-motion: reduce) {
   .typing-dot,
   .shimmer {
     animation: none;
     opacity: 0.7;
+  }
+  .anim-bubble,
+  .anim-rise,
+  .anim-fade-down,
+  .anim-pop,
+  .anim-tilt,
+  .anim-bob,
+  .anim-ring {
+    animation: none;
+  }
+  .anim-tear,
+  .anim-sparkle {
+    animation: none;
+    opacity: 0;
+  }
+  .sam-part {
+    transition: none;
   }
 }

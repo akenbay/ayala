@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SCENARIOS, type ScenarioId } from "@/lib/scenarios";
-import { DIMENSION_LABELS, type Dimension } from "@/lib/rubric/types";
+import type { Dimension } from "@/lib/rubric/types";
 import { FOCUS_TIPS, buildPlan, update, useStore, type Age, type Profile } from "@/lib/storage";
 import { Arrow, Back, Check } from "@/components/icons";
+import { Sam } from "@/components/Sam";
 
 type Option<T extends string | number> = { value: T; label: string };
 type Step =
@@ -20,7 +21,7 @@ type Step =
 
 const STEPS: Step[] = [
   { key: "role", q: "Who are you?", options: [{ value: "mom", label: "Mom" }, { value: "dad", label: "Dad" }, { value: "other", label: "Another caregiver" }] },
-  { key: "age", q: "How old is the child you find hardest right now?", options: [{ value: 2, label: "2 years" }, { value: 3, label: "3 years" }, { value: 4, label: "4 years" }] },
+  { key: "age", q: "How old is your child?", options: [{ value: 2, label: "2 years" }, { value: 3, label: "3 years" }, { value: 4, label: "4 years" }] },
   { key: "sex", q: "Your child is a…", options: [{ value: "boy", label: "Boy" }, { value: "girl", label: "Girl" }, { value: "unsaid", label: "Prefer not to say" }] },
   {
     key: "temperament",
@@ -47,13 +48,13 @@ const STEPS: Step[] = [
   },
   {
     key: "usual",
-    q: "In that moment, what do you usually do?",
+    q: "What do you usually do then?",
     options: [
       { value: "yell", label: "I raise my voice" },
       { value: "give_in", label: "I give in" },
       { value: "threaten", label: "I threaten a punishment" },
-      { value: "freeze", label: "I freeze, I don't know what to say" },
-      { value: "calm", label: "I stay calm, but it doesn't work" },
+      { value: "freeze", label: "I freeze" },
+      { value: "calm", label: "I stay calm, it doesn't work" },
     ],
   },
   {
@@ -143,8 +144,8 @@ export default function StartPage() {
   if (i === 3 && !sawBreak)
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-5 py-10 text-center">
-        <p className="text-[64px] font-extrabold leading-none tracking-[-0.03em] text-ink">83.7%</p>
-        <h1 className="text-[26px] font-extrabold leading-tight">of preschoolers have tantrums at least sometimes.</h1>
+        <p className="anim-pop text-[64px] font-extrabold leading-none tracking-[-0.03em] text-amber-text">83.7%</p>
+        <h1 className="font-display text-[26px] leading-tight">of preschoolers have tantrums at least sometimes.</h1>
         <p className="text-[17px] text-soft-ink">
           You&apos;re not doing it wrong. Toddlers test limits, and the words you use in that moment can be learned like any skill.
         </p>
@@ -171,12 +172,15 @@ export default function StartPage() {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
         <span className="label-caps">Setting up Sam</span>
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">Sam will act like your child.</h1>
+        <div className="flex items-center gap-3">
+          <Sam face="calm" size={64} idle />
+          <h1 className="font-display text-[28px] leading-tight">Sam will act like your child.</h1>
+        </div>
         <ul className="flex flex-col divide-y divide-line rounded-2xl bg-white px-4">
           {rows
             .filter(([, v]) => v)
             .map(([k, v]) => (
-              <li key={k} className="flex items-start justify-between gap-4 py-3">
+              <li key={k} className="anim-rise flex items-start justify-between gap-4 py-3">
                 <span className="text-[15px] text-muted">{k}</span>
                 <span className="flex items-center gap-1.5 text-right text-[15px] font-bold">
                   {v} <Check size={14} className="shrink-0 text-good" />
@@ -203,21 +207,19 @@ export default function StartPage() {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-4 py-6">
         <span className="label-caps">Your plan</span>
-        <h1 className="text-[30px] font-extrabold leading-tight tracking-tight">
+        <h1 className="font-display anim-rise text-[30px] leading-tight">
           Calm words for a {kind}
           {a.age ?? 3} year old {who}
         </h1>
-        <section className="flex flex-col gap-2 rounded-[20px] bg-orange p-5">
-          <span className="text-sm font-extrabold uppercase tracking-[0.04em]">Your first focus</span>
-          <h2 className="text-[24px] font-extrabold leading-tight">{f.title}</h2>
+        <section className="anim-rise flex flex-col gap-2 rounded-3xl bg-peach p-5" style={{ animationDelay: "80ms" }}>
+          <span className="label-caps text-amber-text">Your first focus</span>
+          <h2 className="font-display text-[26px] leading-tight">{f.title}</h2>
           <p className="text-[17px] leading-snug">{FOCUS_TIPS[f.dim]}</p>
-          <p className="text-sm">
-            Skill: {DIMENSION_LABELS[f.dim]}. We picked it from what you usually do; your real practice will update it.
-          </p>
+          <p className="text-sm text-soft-ink">From your answers. Your practice will update it.</p>
         </section>
         <section className="flex items-start gap-3 rounded-2xl bg-white p-5">
-          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange text-lg font-extrabold">
-            S
+          <span className="shrink-0">
+            <Sam face="happy" size={56} />
           </span>
           <p className="text-[17px] leading-snug">
             <b>Sam</b> will act like your {kind}
@@ -255,11 +257,11 @@ export default function StartPage() {
         </div>
       </div>
 
-      <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">{step.q}</h1>
+      <h1 key={`q${i}`} className="font-display anim-rise text-[28px] leading-tight">{step.q}</h1>
       {"multi" in step && <p className="-mt-3 text-[15px] text-muted">Pick all that apply.</p>}
 
-      <div className="flex flex-col gap-2.5">
-        {step.options.map((o) => {
+      <div key={`o${i}`} className="flex flex-col gap-2.5">
+        {step.options.map((o, oi) => {
           const isMulti = "multi" in step;
           const on = isMulti ? multi.includes(String(o.value)) : a[step.key as keyof typeof a] === o.value;
           return (
@@ -270,7 +272,8 @@ export default function StartPage() {
               onClick={() =>
                 isMulti ? setMulti((m) => (m.includes(String(o.value)) ? m.filter((x) => x !== o.value) : [...m, String(o.value)])) : pick(o.value)
               }
-              className={`flex min-h-14 items-center justify-between rounded-2xl px-5 text-left text-[17px] font-semibold transition ${
+              style={{ animationDelay: `${60 + oi * 40}ms` }}
+              className={`anim-rise flex min-h-14 items-center justify-between rounded-2xl px-5 text-left text-[17px] font-semibold transition duration-150 active:scale-[0.98] ${
                 on ? "bg-ink text-cream" : "bg-white hover:shadow-[0_0_0_2px_#1C1608]"
               }`}
             >

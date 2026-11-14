@@ -78,7 +78,7 @@ export default function PricingPage() {
     <div className="mx-auto max-w-xl space-y-5 py-4">
       <div>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>
-        <h1 className="mt-3 text-[32px] font-extrabold leading-tight tracking-tight">Keep practicing through the toddler years</h1>
+        <h1 className="font-display mt-3 text-[32px] leading-tight">Keep practicing through the toddler years</h1>
         <p className="mt-2 text-muted">The free practice shows what works. Plus makes it a habit: a few minutes a day, aimed at the skill you need most.</p>
       </div>
 

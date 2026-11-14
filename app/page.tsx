@@ -7,6 +7,7 @@ import { SCENARIO_LIST, type ScenarioId } from "@/lib/scenarios";
 import { focusLabel, update, useStore, type Age } from "@/lib/storage";
 import { TEST_CARD } from "@/lib/pricing";
 import { Arrow, ChevronRight, ScenarioIcon } from "@/components/icons";
+import { Sam } from "@/components/Sam";
 
 const MINUTES: Record<ScenarioId, number> = { leaving_playground: 2, bedtime_refusal: 2, hitting_sibling: 3, custom: 3 };
 
@@ -37,11 +38,14 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-5xl">
       <section className="pt-6 sm:pt-12">
-        <h1 className="max-w-3xl text-[34px] font-extrabold leading-[1.1] tracking-[-0.02em] sm:text-6xl sm:leading-[1.05]">
-          Practice the words before the hard moment.
-        </h1>
-        <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-muted sm:mt-5 sm:text-xl">
-          Pick a moment. Type what you&apos;d really say. Sam, a practice toddler, pushes back, and you get a score and one tip.
+        <div className="anim-rise flex items-end justify-between gap-3">
+          <h1 className="font-display max-w-3xl text-[34px] leading-[1.1] sm:text-6xl sm:leading-[1.05]">
+            Practice the words before the hard moment.
+          </h1>
+          <Sam face="happy" size={88} idle label="Sam, your practice toddler" />
+        </div>
+        <p className="anim-rise mt-3 max-w-xl text-[17px] leading-relaxed text-muted sm:mt-5 sm:text-xl" style={{ animationDelay: "60ms" }}>
+          Rehearse hard moments with Sam, a pretend toddler. See which of your words help.
         </p>
         {store && !store.profile && (
           <Link href="/start" className="btn-primary mt-5 h-14 w-full text-lg sm:w-auto">
@@ -53,21 +57,34 @@ export default function Home() {
       {store && !store.profile && <p className="mt-6 text-[15px] font-semibold text-muted sm:mt-10">Or try one now:</p>}
 
       <nav aria-label="Scenarios" className={`grid gap-3 sm:grid-cols-3 sm:gap-5 ${store && !store.profile ? "mt-3" : "mt-6 sm:mt-10"}`}>
-        {SCENARIO_LIST.map((s) => {
+        {SCENARIO_LIST.map((s, idx) => {
           const plus = !s.free && !unlocked;
+          const featured = idx === 0;
           return (
             <button
               key={s.id}
               type="button"
               onClick={() => start(s.id)}
-              className="flex min-h-[92px] items-center gap-4 rounded-2xl bg-white p-4 pl-[18px] text-left transition hover:shadow-[0_0_0_2px_#1C1608] sm:min-h-[220px] sm:flex-col sm:items-start sm:p-6"
+              style={{ animationDelay: `${120 + idx * 60}ms` }}
+              className={`anim-rise group flex items-center gap-4 text-left transition duration-150 active:scale-[0.98] sm:min-h-[220px] sm:flex-col sm:items-start sm:p-6 ${
+                featured
+                  ? "shadow-soft rounded-3xl bg-peach p-5 sm:col-span-1"
+                  : "min-h-[76px] rounded-2xl bg-white p-4 pl-[18px] hover:shadow-[0_0_0_2px_#30251F]"
+              }`}
             >
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-peach sm:h-16 sm:w-16">
-                <ScenarioIcon id={s.id} />
-              </span>
+              {featured ? (
+                <span className="shrink-0">
+                  <Sam face="resisting" size={72} />
+                </span>
+              ) : (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-peach sm:h-16 sm:w-16">
+                  <ScenarioIcon id={s.id} size={26} />
+                </span>
+              )}
               <span className="flex flex-1 flex-col gap-1 sm:mt-auto sm:w-full">
+                {featured && <span className="label-caps text-amber-text">Most common</span>}
                 <span className="flex items-center gap-2">
-                  <span className="text-xl font-bold sm:text-2xl sm:font-extrabold">{s.short}</span>
+                  <span className={`${featured ? "font-display text-[24px]" : "text-[19px] font-bold"} sm:text-2xl`}>{s.short}</span>
                   {plus && <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream">Plus</span>}
                 </span>
                 <span className="flex items-center justify-between text-[15px] text-muted sm:text-base">
@@ -75,7 +92,7 @@ export default function Home() {
                   <Arrow size={22} className="hidden text-ink sm:block" />
                 </span>
               </span>
-              <ChevronRight size={20} className="sm:hidden" />
+              <ChevronRight size={20} className="transition group-hover:translate-x-0.5 sm:hidden" />
             </button>
           );
         })}
@@ -83,14 +100,15 @@ export default function Home() {
 
       <Link
         href="/moment"
-        className="mt-3 flex items-center gap-4 rounded-2xl border-[1.5px] border-dashed border-ink/40 bg-paper p-4 pl-[18px] transition hover:border-ink sm:mt-5 sm:p-5"
+        className="anim-rise mt-3 flex items-center gap-4 rounded-2xl border-[1.5px] border-dashed border-field bg-paper p-4 pl-[18px] transition hover:border-ink sm:mt-5 sm:p-5"
+        style={{ animationDelay: "320ms" }}
       >
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange">
-          <ScenarioIcon id="custom" />
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-peach">
+          <ScenarioIcon id="custom" size={26} />
         </span>
         <span className="flex flex-1 flex-col gap-0.5">
           <span className="text-xl font-bold">Your own moment</span>
-          <span className="text-[15px] text-muted">Describe what happens at home, or what you said when you lost it today.</span>
+          <span className="text-[15px] text-muted">Your situation, or what you said when you lost it.</span>
         </span>
         <ChevronRight size={20} />
       </Link>

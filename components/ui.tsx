@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { CDC } from "@/lib/rubric/cdc";
 import { DIMENSIONS, DIMENSION_LABELS, type CheckResult, type Dimension, type Scorecard } from "@/lib/rubric/types";
 
@@ -32,14 +32,61 @@ export function ScoreRing({ value, size = 168, sub = "out of 100" }: { value: nu
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - value / 100)}
-          style={{ transition: "stroke-dashoffset 700ms ease" }}
+          className="anim-ring"
+          style={{ transition: "stroke-dashoffset 600ms ease", ["--ring-c" as string]: c }}
         />
       </svg>
       <div className="absolute flex flex-col items-center leading-none">
-        <span className={`font-extrabold tracking-[-0.03em] ${big ? "text-[60px]" : size >= 80 ? "text-[28px]" : "text-xl"}`}>{value}</span>
+        <span className={`font-extrabold tracking-[-0.03em] tabular-nums ${big ? "text-[60px]" : size >= 80 ? "text-[28px]" : "text-xl"}`}>
+          <CountUp value={value} />
+        </span>
         {big && sub && <span className="mt-1 text-sm font-semibold text-muted">{sub}</span>}
       </div>
     </div>
+  );
+}
+
+/** Counts up to a number in about half a second. Shows the final number at once with reduced motion. */
+export function CountUp({ value, ms = 550, from = 0 }: { value: number; ms?: number; from?: number }) {
+  const [n, setN] = useState(from);
+  useEffect(() => {
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const start = performance.now();
+    const tick = (t: number) => {
+      const p = reduce ? 1 : Math.min(1, (t - start) / ms);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(from + (value - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms, from]);
+  return <>{n}</>;
+}
+
+/** One quiet burst of small amber sparkles, for the moment the score improves. */
+export function Sparkles({ count = 8 }: { count?: number }) {
+  const parts = Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * Math.PI * 2;
+    const dist = 46 + (i % 2) * 14;
+    return { dx: Math.round(Math.cos(angle) * dist), dy: Math.round(Math.sin(angle) * dist), delay: (i % 3) * 60 };
+  });
+  return (
+    <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
+      {parts.map((p, i) => (
+        <svg
+          key={i}
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          className="anim-sparkle absolute -left-1.5 -top-1.5"
+          style={{ ["--dx" as string]: `${p.dx}px`, ["--dy" as string]: `${p.dy}px`, animationDelay: `${p.delay}ms` }}
+        >
+          <path d="M6 0l1.4 4.6L12 6l-4.6 1.4L6 12l-1.4-4.6L0 6l4.6-1.4z" fill={i % 2 ? "#FFC146" : "#FFB41D"} />
+        </svg>
+      ))}
+    </span>
   );
 }
 

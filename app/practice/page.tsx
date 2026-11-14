@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SCENARIOS, describe, type ScenarioId } from "@/lib/scenarios";
-import type { CheckResult, Dimension, Scorecard } from "@/lib/rubric/types";
+import type { CheckId, CheckResult, Dimension, Scorecard } from "@/lib/rubric/types";
 import { MAX_CHARS } from "@/lib/rubric/validate";
 import {
   FOCUS_TIPS,
@@ -22,6 +22,8 @@ import {
 import {
   CDC_URL,
   CheckList,
+  CountUp,
+  Sparkles,
   DimensionBars,
   Highlighted,
   Legend,
@@ -33,10 +35,11 @@ import {
 import { codeCoach, type Coach } from "@/lib/coach";
 import type { Crisis } from "@/lib/safety";
 import { CrisisCard } from "@/components/CrisisCard";
+import { Sam, faceFor } from "@/components/Sam";
 import { PlanPicker } from "@/components/PlanPicker";
 import { DIMENSION_LABELS } from "@/lib/rubric/types";
 import { ENDING_STATES, MAX_PARENT_TURNS, STATE_LABEL, type SamState } from "@/lib/toddler";
-import { Mic, Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info, ScenarioIcon } from "@/components/icons";
+import { Mic, Arrow, ArrowDown, ArrowUp, Back, Check, ChevronDown, Info } from "@/components/icons";
 
 
 const LINK_ALIASES: Record<string, ScenarioId> = {
@@ -359,7 +362,7 @@ function PracticeHeader({ title, step, kind }: { title: string; step: Step; kind
             const now = i === active;
             return (
               <li key={l} className="flex flex-col gap-1.5">
-                <span className={`h-1.5 rounded-full ${done ? "bg-ink" : now ? "bg-orange" : "bg-line"}`} />
+                <span className={`h-1.5 rounded-full transition-colors duration-300 ${done ? "bg-ink" : now ? "bg-orange" : "bg-line"}`} />
                 <span className={`flex items-center gap-1 text-[13px] ${now ? "font-extrabold" : done ? "font-semibold" : "font-medium text-muted"}`}>
                   {done ? <Check size={13} /> : `${i + 1}`} {l}
                 </span>
@@ -438,11 +441,11 @@ function useVoice(onText: (t: string) => void) {
   return { supported, listening, toggle };
 }
 
-function SamBubble({ text, typing = false, state }: { text?: string; typing?: boolean; state?: SamState }) {
+function SamBubble({ text, typing = false, state, opener = false }: { text?: string; typing?: boolean; state?: SamState; opener?: boolean }) {
   return (
-    <div className="flex max-w-[86%] items-end gap-2">
-      <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange text-[15px] font-extrabold">
-        S
+    <div className="anim-bubble flex max-w-[86%] items-end gap-2">
+      <span className="shrink-0">
+        <Sam face={faceFor(state, opener)} size={34} />
       </span>
       <div className="flex flex-col gap-1">
         {!typing && <span className="pl-1 text-[13px] text-muted">Sam</span>}
@@ -452,12 +455,6 @@ function SamBubble({ text, typing = false, state }: { text?: string; typing?: bo
           </div>
         ) : (
           <p className="rounded-[18px] rounded-bl-md bg-peach px-[15px] py-3 text-[17px] leading-snug">{text}</p>
-        )}
-        {state && (
-          <span className="flex items-center gap-1.5 pl-1 text-[13px] font-semibold text-soft-ink">
-            <span aria-hidden className={`h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
-            Sam: {STATE_LABEL[state].toLowerCase()}
-          </span>
         )}
       </div>
     </div>
@@ -492,6 +489,7 @@ function Chat(props: {
   const endRef = useRef<HTMLDivElement>(null);
   const parentTurns = msgs.filter((m) => m.role === "parent").length;
   const lastState = [...msgs].reverse().find((m) => m.role === "child" && m.state)?.state;
+  const face = faceFor(lastState, true);
   const ended = !busy && parentTurns > 0 && ((lastState && ENDING_STATES.includes(lastState)) || parentTurns >= MAX_PARENT_TURNS);
   const outcome = OUTCOME[lastState ?? "resisting"];
   const canType = !ended && parentTurns < MAX_PARENT_TURNS;
@@ -572,12 +570,16 @@ function Chat(props: {
   return (
     <div className="flex min-h-[calc(100dvh-118px)] flex-col">
       <div className="flex flex-1 flex-col gap-3.5 py-4">
-        <div className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3.5">
-          <span className="mt-px shrink-0">
-            <ScenarioIcon id={scenarioId} size={22} />
-          </span>
+        <section aria-label="The moment" className="anim-rise flex items-center gap-3.5 rounded-3xl bg-peach p-4">
+          <Sam face={face} size={76} idle label={`Sam looks ${face === "happy" ? "happy" : face === "meltdown" ? "upset and crying" : face === "resisting" ? "stubborn" : "calm"}`} />
           <div className="flex-1">
             <p className="text-[17px] font-semibold leading-snug">{situation}</p>
+            {lastState && (
+              <p key={lastState} className="anim-fade-down mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[13px] font-semibold">
+                <span aria-hidden className={`h-2 w-2 rounded-full ${STATE_DOT[lastState]}`} />
+                Sam: {STATE_LABEL[lastState].toLowerCase()}
+              </p>
+            )}
             {parentTurns === 0 && !ownSituation && (
               <p className="mt-1 text-[13px] text-muted">
                 Age {age},{" "}
@@ -606,7 +608,10 @@ function Chat(props: {
               </p>
             )}
           </div>
-        </div>
+        </section>
+        {scenarioId === "hitting_sibling" && !transfer && parentTurns === 0 && (
+          <p className="-mt-1.5 px-1 text-[13px] text-muted">If anyone is unsafe, focus on safety before practicing what to say.</p>
+        )}
 
         {banner && (
           <div className="rounded-2xl bg-peach px-4 py-3">
@@ -617,9 +622,9 @@ function Chat(props: {
 
         {msgs.map((m, i) =>
           m.role === "child" ? (
-            <SamBubble key={i} text={m.text} state={m.state} />
+            <SamBubble key={i} text={m.text} state={m.state} opener={i === 0} />
           ) : (
-            <div key={i} className="flex max-w-[86%] flex-col items-end gap-1 self-end">
+            <div key={i} className="anim-bubble flex max-w-[86%] flex-col items-end gap-1 self-end">
               <span className="pr-1 text-[13px] text-muted">You</span>
               <p className="rounded-[18px] rounded-br-md bg-ink px-[15px] py-3 text-[17px] leading-snug text-cream">{m.text}</p>
             </div>
@@ -671,9 +676,12 @@ function Chat(props: {
 
       <footer className="sticky bottom-0 -mx-4 border-t border-line bg-white px-4 pb-3 pt-2.5 sm:mx-0 sm:rounded-t-2xl sm:border-x">
         {ended && (
-          <div role="status" className={`mb-2.5 rounded-2xl px-4 py-3 ${outcome.tone}`}>
+          <div role="status" className={`anim-rise mb-2.5 flex items-center gap-3 rounded-2xl px-4 py-3 ${outcome.tone}`}>
+            <Sam face={faceFor(lastState)} size={44} />
+            <div>
             <p className="text-[17px] font-extrabold">{outcome.title}</p>
             <p className="mt-0.5 text-[15px] leading-snug text-soft-ink">{outcome.text}</p>
+            </div>
           </div>
         )}
         {ended && (
@@ -748,15 +756,15 @@ function Chat(props: {
                 aria-label="Send"
                 onClick={send}
                 disabled={!text.trim() || busy !== ""}
-                className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-ink text-cream transition disabled:bg-field disabled:text-ink"
+                className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-orange text-ink transition duration-150 hover:bg-orange-hover active:scale-95 disabled:bg-track disabled:text-muted"
               >
-                {busy === "score" ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-cream border-t-transparent" /> : <ArrowUp size={22} />}
+                {busy === "score" ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink border-t-transparent" /> : <ArrowUp size={22} />}
               </button>
             </div>
           </>
         )}
         <p className="mt-2 text-center text-xs text-muted">
-          {parentTurns === 0 && !transfer ? "About 2 minutes. No account needed. " : ""}Sam is a simulation. Real kids vary.
+          {parentTurns === 0 && !transfer ? "About 2 minutes. No account needed. " : ""}Sam is a pretend toddler. Real children respond differently.
         </p>
       </footer>
     </div>
@@ -799,7 +807,7 @@ function Collapsible({ label, children, defaultOpen = false }: { label: string; 
         {label}
         <ChevronDown size={20} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="space-y-4 pb-2 pt-1">{children}</div>}
+      {open && <div className="anim-fade-down space-y-4 pb-2 pt-1">{children}</div>}
     </section>
   );
 }
@@ -862,7 +870,7 @@ function DiffText({ from, to }: { from: string; to: string }) {
         /^\s+$/.test(tok) || had.has(norm(tok)) ? (
           <Fragment key={i}>{tok}</Fragment>
         ) : (
-          <mark key={i} className="good">
+          <mark key={i} className="good anim-rise" style={{ animationDelay: `${150 + Math.min(i, 30) * 25}ms` }}>
             {tok}
           </mark>
         ),
@@ -976,23 +984,30 @@ function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: C
   const c = typeof coach === "object" ? coach : null;
   return (
     <div className="flex flex-col gap-4 py-5">
-      <div className="flex items-center gap-4">
+      <div className="anim-rise flex items-center gap-4">
         <ScoreRing value={attempt.total} size={84} />
         <div className="flex flex-col items-start gap-1.5">
           <OutcomeChip a={attempt} />
-          <h1 className="text-[22px] font-extrabold leading-tight tracking-[-0.01em]">{verdict(t.card)}</h1>
+          <h1 className="font-display text-[24px] leading-tight">{verdict(t.card)}</h1>
         </div>
       </div>
+      <p className="-mt-2 text-[13px] text-muted">This scores the practice response, not you as a parent.</p>
 
-      {c ? <CoachNotes coach={c} parts={["change"]} /> : coach === "loading" ? <CoachLoading /> : <BiggestWin card={t.card} />}
-      {c?.rewrite && <Improved rewrite={c.rewrite} />}
+      <div className="anim-rise" style={{ animationDelay: "80ms" }}>
+        {c ? <CoachNotes coach={c} parts={["keep", "change"]} /> : coach === "loading" ? <CoachLoading /> : <BiggestWin card={t.card} />}
+      </div>
+      {c?.rewrite && (
+        <div className="anim-rise" style={{ animationDelay: "160ms" }}>
+          <Improved rewrite={c.rewrite} />
+        </div>
+      )}
 
       <button type="button" className="btn-primary h-[58px] text-lg" onClick={onRetry}>
         Try again in your own words <Arrow size={20} />
       </button>
 
       <Collapsible label="More about this reply">
-        {c && <CoachNotes coach={c} parts={["summary", "keep", "heard"]} />}
+        {c && <CoachNotes coach={c} parts={["summary", "heard"]} />}
         {attempt.turns.length > 1 && (
           <div className="flex justify-center gap-2" role="group" aria-label="Pick a reply">
             {attempt.turns.map((x, i) => (
@@ -1011,6 +1026,21 @@ function AttemptScore({ attempt, coach, onRetry }: { attempt: Attempt; coach?: C
     </div>
   );
 }
+
+/** Praise the exact skill that improved, not the score. */
+const GAIN_VERB: Partial<Record<CheckId, string>> = {
+  acknowledges_feeling: "named the feeling first",
+  states_limit: "said the limit calmly",
+  two_ok_choices: "offered two choices",
+  alternative_or_praise: "said what Sam can do instead",
+  no_yelling: "kept your voice calm",
+  no_shaming: "dropped the harsh words",
+  no_empty_threats: "dropped the threat",
+  no_bribe: "held the limit without a deal",
+  states_not_asks: "said it as a statement",
+  specific_action: "made the direction specific",
+  one_direction: "gave one direction at a time",
+};
 
 /** One tap: would the parent really say this? A usefulness signal kept with the attempt. */
 function UsefulAsk({ attemptId }: { attemptId: string }) {
@@ -1060,10 +1090,10 @@ function Paywall({ onContinue }: { onContinue: () => void }) {
       </div>
     );
   return (
-    <div className="flex flex-col gap-4 py-5">
+    <div className="anim-rise flex flex-col gap-4 py-5">
       <div>
-        <span className="label-caps">Your plan</span>
-        <h1 className="mt-1 text-[28px] font-extrabold leading-tight tracking-tight">
+        <span className="label-caps text-amber-text">Your plan</span>
+        <h1 className="font-display mt-1 text-[30px] leading-tight">
           7 days on {DIMENSION_LABELS[focus].toLowerCase()}
         </h1>
         <p className="mt-1.5 text-[17px] text-soft-ink">{FOCUS_TIPS[focus]}</p>
@@ -1076,7 +1106,13 @@ function Paywall({ onContinue }: { onContinue: () => void }) {
               p.done ? "bg-good-soft text-good" : "bg-white text-muted"
             }`}
           >
-            {p.done ? <Check size={14} /> : p.day}
+            {p.done ? (
+              <span className="anim-pop" style={{ animationDelay: "250ms" }}>
+                <Check size={14} />
+              </span>
+            ) : (
+              p.day
+            )}
             <span className="sr-only">{p.done ? `Day ${p.day} done` : `Day ${p.day}`}</span>
           </li>
         ))}
@@ -1111,11 +1147,13 @@ function Compare({
     .sort((x, y) => y.maxPoints - x.maxPoints);
   return (
     <div className="flex flex-col gap-[18px] py-6">
-      <div className="flex flex-col items-center gap-2 text-center">
+      <div className="anim-rise flex flex-col items-center gap-2 text-center">
+        <Sam face={faceFor(b.outcome)} size={96} />
         {d > 0 ? (
           <>
-            <p className="flex items-center gap-1 text-[64px] font-extrabold leading-none tracking-[-0.03em] text-good">
-              <ArrowUp size={44} />+{d}
+            <p className="relative flex items-center gap-1 text-[64px] font-extrabold leading-none tracking-[-0.03em] text-good tabular-nums">
+              <Sparkles />
+              <ArrowUp size={44} />+<CountUp value={d} />
             </p>
             <p className="text-[17px] font-semibold text-soft-ink">
               points from your first try ({a.total} → <b className="text-ink">{b.total}</b>)
@@ -1129,8 +1167,9 @@ function Compare({
             </span>
           </>
         )}
-        <OutcomeChip a={b} />
-        <h1 className="mt-1 max-w-[340px] text-[24px] font-extrabold leading-tight tracking-[-0.015em]">{verdict(tb.card)}</h1>
+        <h1 className="font-display mt-1 max-w-[340px] text-[26px] leading-tight">
+          {gained[0] ? `You ${GAIN_VERB[gained[0].id] ?? "improved"}.` : verdict(tb.card)}
+        </h1>
       </div>
 
       <UsefulAsk attemptId={b.id} />
@@ -1160,8 +1199,6 @@ function Compare({
         </div>
       </section>
 
-      {typeof coach === "object" ? <CoachNotes coach={coach} showChange={b.total < 85} /> : coach === "loading" ? <CoachLoading /> : null}
-
       <div className="flex flex-col gap-1 rounded-2xl bg-peach px-[18px] py-4">
         <span className="text-[17px] font-bold">Now prove it on your own</span>
         <span className="text-base leading-snug">A new moment: {SCENARIOS[scenarioId].transfer.title.toLowerCase()}. No tips this time.</span>
@@ -1171,7 +1208,8 @@ function Compare({
         Try a new situation <Arrow size={20} />
       </button>
 
-      <Collapsible label="See full breakdown">
+      <Collapsible label="More about this reply">
+        {typeof coach === "object" ? <CoachNotes coach={coach} showChange={b.total < 85} /> : coach === "loading" ? <CoachLoading /> : null}
         <div className="rounded-2xl bg-white p-[18px]">
           <DimensionBars card={tb.card} compare={ta.card} />
           <p className="mt-3 text-xs text-muted">Grey shows your first try.</p>
@@ -1186,9 +1224,10 @@ function Done({ first, retry, transfer, coach }: { first?: Attempt; retry?: Atte
   const t = transfer.turns[0];
   return (
     <div className="flex flex-col gap-[18px] py-6">
-      <div className="flex flex-col items-center gap-3.5 text-center">
-        <ScoreRing value={transfer.total} />
-        <h1 className="max-w-[340px] text-[26px] font-extrabold leading-tight tracking-[-0.015em]">
+      <div className="anim-rise flex flex-col items-center gap-3 text-center">
+        <Sam face={faceFor(transfer.outcome)} size={96} />
+        <ScoreRing value={transfer.total} size={120} />
+        <h1 className="font-display max-w-[340px] text-[28px] leading-tight">
           {transfer.outcome === "going_along" ? "You did it on your own." : "You tried it on your own."}
         </h1>
         <OutcomeChip a={transfer} />
@@ -1208,8 +1247,8 @@ function Done({ first, retry, transfer, coach }: { first?: Attempt; retry?: Atte
       {typeof coach === "object" ? <CoachNotes coach={coach} showChange={transfer.total < 85} /> : coach === "loading" ? <CoachLoading /> : <YourWords turn={t} />}
       {typeof coach === "object" && coach.rewrite && transfer.total < 85 && <Improved rewrite={coach.rewrite} />}
 
-      <section className="flex flex-col gap-2 rounded-2xl bg-orange p-5">
-        <span className="text-sm font-extrabold uppercase tracking-[0.04em]">Keep it going</span>
+      <section className="flex flex-col gap-2 rounded-3xl bg-peach p-5">
+        <span className="label-caps text-amber-text">Keep it going</span>
         <h2 className="text-[24px] font-extrabold leading-tight">One short practice a day</h2>
         <p className="text-[17px] leading-snug">Your 7 day plan targets your weakest skill. Day 1 is free.</p>
         <Link href="/progress" className="btn-primary mt-1.5 h-14 text-lg">

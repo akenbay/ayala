@@ -60,7 +60,7 @@ export default function MomentPage() {
         <Link href="/" aria-label="Back to home" className="flex h-11 w-11 items-center justify-center rounded-full bg-white">
           <Back size={20} />
         </Link>
-        <h1 className="text-[28px] font-extrabold tracking-tight">Your own moment</h1>
+        <h1 className="font-display text-[30px]">Your own moment</h1>
       </div>
 
       <div className="grid grid-cols-2 gap-2 rounded-full bg-white p-1" role="tablist" aria-label="What do you want to practice?">

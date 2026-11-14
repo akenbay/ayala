@@ -8,6 +8,7 @@ import { DIMENSION_LABELS, DIMENSIONS } from "@/lib/rubric/types";
 import { GUARANTEE, PLANS } from "@/lib/pricing";
 import { FOCUS_TIPS, REMINDER_TIME, buildPlan, demoWeekAttempts, focusLabel, reminderIcs, update, useStore, weakestDimension } from "@/lib/storage";
 import { Arrow, Bell, Calendar, Check, ChevronDown } from "@/components/icons";
+import { Sam } from "@/components/Sam";
 
 const KIND_LABEL = { first: "First try", retry: "With the tip", transfer: "On your own" } as const;
 
@@ -90,6 +91,7 @@ export default function ProgressPage() {
   const router = useRouter();
   const store = useStore();
   const [showAll, setShowAll] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   // Create the plan once there is practice history.
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function ProgressPage() {
   if (!store.attempts.length) {
     return (
       <div className="mx-auto max-w-xl py-6">
-        <h1 className="text-[28px] font-extrabold tracking-tight">Your progress</h1>
+        <h1 className="font-display text-[30px]">Your progress</h1>
         <div className="mt-5 flex flex-col items-center gap-3 rounded-2xl bg-white p-6 text-center">
           <h2 className="text-xl font-extrabold">No practice yet</h2>
           <p className="text-[17px] text-muted">Do one 2 minute practice and your progress and 7 day plan appear here.</p>
@@ -164,7 +166,7 @@ export default function ProgressPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-[18px] py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-[28px] font-extrabold tracking-tight">Your progress</h1>
+        <h1 className="font-display text-[30px]">Your progress</h1>
         {!isDemo && (
           <button type="button" className="min-h-11 text-[15px] font-semibold underline underline-offset-[3px]" onClick={loadDemoWeek}>
             See a sample week (demo)
@@ -183,37 +185,27 @@ export default function ProgressPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-2.5 rounded-2xl bg-white p-4">
+      <div className="anim-rise flex items-center justify-between gap-4 rounded-2xl bg-white p-4">
+        <div>
           <span className="text-sm font-semibold text-muted">This week</span>
-          <span className="text-[30px] font-extrabold leading-none">
-            {weekDays} <span className="text-base font-semibold">{weekDays === 1 ? "day" : "days"}</span>
-          </span>
-          <div role="img" aria-label={`Practiced on ${weekDays} of the last 7 days`} className="grid grid-cols-7 gap-1">
-            {week.map((on, i) => (
-              <span key={i} className={`h-3 rounded-full ${on ? "bg-orange" : "bg-line"}`} />
-            ))}
-          </div>
+          <p className="text-[28px] font-extrabold leading-none">
+            {weekDays} <span className="text-base font-semibold">{weekDays === 1 ? "day" : "days"} practiced</span>
+          </p>
         </div>
-        <div className="flex flex-col gap-2.5 rounded-2xl bg-white p-4">
-          <span className="text-sm font-semibold text-muted">Score trend</span>
-          <span className="text-[30px] font-extrabold leading-none">
-            {latest}{" "}
-            {trend !== 0 && (
-              <span className={`text-[15px] font-bold ${trend > 0 ? "text-good" : "text-bad"}`}>
-                {trend > 0 ? "+" : "−"}
-                {Math.abs(trend)}
-              </span>
-            )}
-          </span>
-          <Sparkline values={totals.slice(-10)} />
+        <div role="img" aria-label={`Practiced on ${weekDays} of the last 7 days`} className="grid grid-cols-7 gap-1.5">
+          {week.map((on, i) => (
+            <span key={i} className={`h-4 w-4 rounded-full ${on ? "anim-pop bg-orange" : "bg-line"}`} style={on ? { animationDelay: `${i * 50}ms` } : undefined} />
+          ))}
         </div>
       </div>
 
       {next && (
-        <section aria-label="Today's plan step" className="flex flex-col gap-2.5 rounded-[20px] bg-orange p-5">
-          <span className="text-sm font-extrabold uppercase tracking-[0.04em]">Today, day {next.day} of 7</span>
-          <h2 className="text-[26px] font-extrabold leading-tight tracking-tight">
+        <section aria-label="Today's plan step" className="anim-rise flex flex-col gap-2.5 rounded-3xl bg-peach p-5">
+          <div className="flex items-center justify-between">
+            <span className="label-caps text-amber-text">Today, day {next.day} of 7</span>
+            <Sam face="resisting" size={56} />
+          </div>
+          <h2 className="font-display text-[26px] leading-tight">
             {SCENARIOS[next.scenarioId].short}: {focusLabel(next.focus).toLowerCase()}
           </h2>
           <p className="text-[17px] leading-snug">{FOCUS_TIPS[next.focus]}</p>
@@ -228,6 +220,31 @@ export default function ProgressPage() {
         defaultTime={store.profile?.when ? REMINDER_TIME[store.profile.when] : undefined}
       />
 
+      <section className="border-t border-line pt-1">
+        <button
+          type="button"
+          aria-expanded={showMore}
+          onClick={() => setShowMore((v) => !v)}
+          className="flex h-[52px] w-full items-center justify-between px-0.5 text-base font-semibold"
+        >
+          Skills, plan and history
+          <ChevronDown size={20} className={`transition ${showMore ? "rotate-180" : ""}`} />
+        </button>
+        {showMore && (
+          <div className="anim-fade-down flex flex-col gap-[18px] pb-2">
+        <div className="flex flex-col gap-2.5 rounded-2xl bg-white p-4">
+          <span className="text-sm font-semibold text-muted">Score trend</span>
+          <span className="text-[30px] font-extrabold leading-none">
+            {latest}{" "}
+            {trend !== 0 && (
+              <span className={`text-[15px] font-bold ${trend > 0 ? "text-good" : "text-bad"}`}>
+                {trend > 0 ? "+" : "−"}
+                {Math.abs(trend)}
+              </span>
+            )}
+          </span>
+          <Sparkline values={totals.slice(-10)} />
+        </div>
       <section aria-label="Skills" className="flex flex-col gap-3.5 rounded-2xl bg-white p-[18px]">
         <h2 className="text-[19px] font-extrabold">Your skills</h2>
         <ul className="flex flex-col gap-3">
@@ -316,6 +333,10 @@ export default function ProgressPage() {
           >
             {showAll ? "Show less" : `Show all ${recent.length}`} <ChevronDown size={18} className={showAll ? "rotate-180" : ""} />
           </button>
+        )}
+      </section>
+
+          </div>
         )}
       </section>
 
