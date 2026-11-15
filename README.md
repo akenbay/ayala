@@ -137,7 +137,7 @@ app/
   moment/page.tsx       your own moment and Today I lost it
   help/page.tsx         Help me now
   start/page.tsx        60 second quiz
-  practice/page.tsx     chat, score, retry, before and after, transfer
+  practice/page.tsx     the practice flow: chat → score → retry → before and after → new situation
   progress/page.tsx     last 30 days, phrases, skills, 7 day plan, reminder
   pricing/page.tsx      paywall, manage Plus (pause, cancel), restore Plus
   api/score             POST: scores one parent message
@@ -148,6 +148,12 @@ app/
   api/checkout          POST: creates a Stripe test session; /verify confirms it
   api/subscription      POST: pause, resume, Stripe portal
   api/restore           POST: restore Plus by checkout email (test mode)
+components/practice/    the practice screens, split by step
+  PracticeHeader.tsx    rounds, situation and Sam's state
+  Chat.tsx              the conversation with Sam, voice input, "Need an idea?"
+  Feedback.tsx          coach notes, your words improved, highlighted phrases
+  Screens.tsx           score, before and after, paywall, done
+  shared.tsx            verdict line, Sam's states, shared types
 lib/
   scenarios.ts          the first 3 stories and story groups; moreScenarios.ts has the other 12
   lessons.ts            lessons and lesson groups
