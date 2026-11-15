@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { clock, nextRenewal, update, useStore } from "@/lib/storage";
+import { PLANS, isPlanId } from "@/lib/pricing";
 import { Spinner } from "./ui";
 
 const fmt = (d: Date | string) => new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
@@ -101,7 +102,11 @@ export function ManagePlus() {
     <section aria-label="Manage Plus" className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="rounded-full bg-good-soft px-3 py-1.5 text-sm font-semibold text-good">You have Plus ✓</span>
-        {plus?.plan && <span className="text-sm text-muted">{plus.plan === "annual" ? "Yearly, $79" : "Monthly, $12.99"}</span>}
+        {plus?.plan && (
+          <span className="text-sm text-muted">
+            {isPlanId(plus.plan) ? `${PLANS[plus.plan].title}, then ${PLANS[plus.plan].renewLabel}` : plus.plan === "annual" ? "Yearly, $79" : "Monthly, $12.99"}
+          </span>
+        )}
       </div>
       <p className="text-[15px] text-soft-ink">
         {paused ? (

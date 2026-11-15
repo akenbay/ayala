@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { GUARANTEE, PLANS, TEST_CARD, type PlanId } from "@/lib/pricing";
+import { DEFAULT_PLAN, GUARANTEE, PLANS, TEST_CARD, isPlanId, type PlanId } from "@/lib/pricing";
+import { PlanOptions, planButtonLabel, planTerms } from "@/components/PlanOptions";
 import { update, useStore } from "@/lib/storage";
 import { Spinner } from "@/components/ui";
 import { ManagePlus, RestorePlus } from "@/components/ManagePlus";
@@ -17,7 +18,7 @@ const FEATURES: [string, string][] = [
 export default function PricingPage() {
   const unlocked = useStore()?.unlocked ?? false;
   const [busy, setBusy] = useState(false);
-  const [plan, setPlan] = useState<PlanId>("annual");
+  const [plan, setPlan] = useState<PlanId>(DEFAULT_PLAN);
   const [msg, setMsg] = useState<{ tone: "good" | "bad" | "info"; text: string } | null>(null);
 
   // Handle the return from Stripe Checkout once on mount.
@@ -41,7 +42,7 @@ export default function PricingPage() {
         if (d.unlocked) {
           update((s) => {
             s.unlocked = true;
-            s.plus = { since: new Date().toISOString(), plan: d.plan ?? "monthly", checkoutSessionId: sessionId };
+            s.plus = { since: new Date().toISOString(), plan: isPlanId(d.plan) ? d.plan : DEFAULT_PLAN, checkoutSessionId: sessionId };
           });
           setMsg({ tone: "good", text: "Welcome to Plus. Everything is unlocked." });
         } else setMsg({ tone: "bad", text: "We couldn't confirm the payment. Try again." });
@@ -103,30 +104,8 @@ export default function PricingPage() {
       <div className="card shadow-[inset_0_0_0_2px_#1C1608]">
         <fieldset>
           <legend className="text-sm font-semibold text-muted">Choose your plan</legend>
-          <div className="mt-2 grid gap-2.5">
-            {(["annual", "monthly"] as PlanId[]).map((id) => {
-              const p = PLANS[id];
-              const on = plan === id;
-              return (
-                <label
-                  key={id}
-                  className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border-[1.5px] px-4 py-3.5 ${on ? "border-ink bg-white shadow-[0_0_0_1px_#1C1608]" : "border-field bg-cream"}`}
-                >
-                  <input type="radio" name="plan" value={id} checked={on} onChange={() => setPlan(id)} className="h-5 w-5 accent-black" />
-                  <span className="flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="text-[17px] font-extrabold">{id === "annual" ? "Yearly" : "Monthly"}</span>
-                      {id === "annual" && <span className="rounded-full bg-orange px-2.5 py-0.5 text-xs font-extrabold">Best value</span>}
-                    </span>
-                    <span className="block text-sm text-muted">{p.note}</span>
-                  </span>
-                  <span className="text-right">
-                    <span className="block text-lg font-extrabold">{p.label}</span>
-                    {id === "annual" && <span className="block text-xs text-muted">{p.perMonth}</span>}
-                  </span>
-                </label>
-              );
-            })}
+          <div className="mt-2">
+            <PlanOptions plan={plan} onChange={setPlan} name="plan" />
           </div>
         </fieldset>
         <ul className="mt-4 space-y-3">
@@ -154,9 +133,10 @@ export default function PricingPage() {
           </div>
         ) : (
           <button className="btn-primary mt-5 w-full" onClick={checkout} disabled={busy}>
-            {busy ? <Spinner /> : `Get Plus, ${PLANS[plan].label}`}
+            {busy ? <Spinner /> : planButtonLabel(plan)}
           </button>
         )}
+        {!unlocked && <p className="mt-2 text-center text-[15px] font-semibold">{planTerms(plan)}</p>}
         {!unlocked && (
           <ul className="mt-3 space-y-1 text-center text-sm text-soft-ink">
             <li>
@@ -184,7 +164,7 @@ export default function PricingPage() {
             <b className="text-ink">Positive Parenting Solutions:</b> $14.99/month for courses and coaching.
           </li>
           <li>
-            <b className="text-ink">Ayala Plus:</b> $79/year or $12.99/month to practice the exact moment and see which words worked.
+            <b className="text-ink">Ayala Plus:</b> 7 days for {PLANS.trial.firstLabel}, then {PLANS.four_week.renewLabel}, or {PLANS.twelve_week.renewLabel} ({PLANS.twelve_week.perMonth}–{PLANS.four_week.perMonth} a month) to practice the exact moment and see which words worked.
           </li>
         </ul>
       </div>

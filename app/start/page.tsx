@@ -6,7 +6,10 @@ import { useState } from "react";
 import { SCENARIOS, type ScenarioId } from "@/lib/scenarios";
 import type { Dimension } from "@/lib/rubric/types";
 import { FOCUS_TIPS, buildPlan, update, useStore, type Age, type Profile } from "@/lib/storage";
-import { Arrow, Back, Check } from "@/components/icons";
+import { Arrow, Back, Check, Info } from "@/components/icons";
+import { CHECK_OPENER, CHECK_OPTIONS, checkScore, type CheckId } from "@/lib/quickCheck";
+import { CDC } from "@/lib/rubric/cdc";
+import { ScoreRing } from "@/components/ui";
 import { Sam } from "@/components/Sam";
 
 type Option<T extends string | number> = { value: T; label: string };
@@ -17,6 +20,7 @@ type Step =
   | { key: "temperament"; q: string; options: Option<NonNullable<Profile["temperament"]>>[] }
   | { key: "hardest"; q: string; multi: true; options: Option<string>[] }
   | { key: "usual"; q: string; options: Option<NonNullable<Profile["usual"]>>[] }
+  | { key: "check"; q: string; options: Option<CheckId>[] }
   | { key: "when"; q: string; options: Option<NonNullable<Profile["when"]>>[] };
 
 const STEPS: Step[] = [
@@ -57,6 +61,7 @@ const STEPS: Step[] = [
       { value: "calm", label: "I stay calm, it doesn't work" },
     ],
   },
+  { key: "check", q: "Quick check: what would you say?", options: CHECK_OPTIONS.map((o) => ({ value: o.id, label: o.text })) },
   {
     key: "when",
     q: "When does it happen most?",
@@ -105,7 +110,15 @@ function firstScenario(hardest: string[], unlocked: boolean): ScenarioId | "cust
   return "leaving_playground";
 }
 
-/** A 60 second start: seven taps that shape Sam, the plan and the reminder. No email, no account. */
+/** The quick check's answer, when it shows a clear gap, decides the first focus over "what you usually do". */
+function focusFor(usual: NonNullable<Profile["usual"]>, check?: CheckId): { dim: Dimension; title: string } {
+  const fromCheck = CHECK_OPTIONS.find((o) => o.id === check)?.focus;
+  if (fromCheck === "clear_direction") return { dim: "clear_direction", title: "Say it, don't ask it" };
+  if (fromCheck === "calm_respectful") return { dim: "calm_respectful", title: "Limits without threats" };
+  return FOCUS[usual];
+}
+
+/** A 75 second start: eight taps, including a quick scored check, that shape Sam, the plan and the reminder. No email, no account. */
 export default function StartPage() {
   const router = useRouter();
   const store = useStore();
@@ -114,20 +127,35 @@ export default function StartPage() {
   const [multi, setMulti] = useState<string[]>([]);
   const [sawBreak, setSawBreak] = useState(false);
   const [sawSetup, setSawSetup] = useState(false);
+  const [checkShown, setCheckShown] = useState(false);
   const done = i >= STEPS.length;
   const step = STEPS[Math.min(i, STEPS.length - 1)];
 
   function pick(value: string | number) {
     setA((x) => ({ ...x, [step.key]: value }));
+    // The quick check stays on screen to show its score before moving on.
+    if (step.key === "check") {
+      setCheckShown(true);
+      return;
+    }
     setI((n) => n + 1);
   }
 
   function finish() {
     const usual = a.usual ?? "freeze";
-    const focus = FOCUS[usual].dim;
+    const focus = focusFor(usual, a.check).dim;
     const unlocked = store?.unlocked ?? false;
     const first = firstScenario(multi, unlocked);
-    const profile: Profile = { role: a.role, sex: a.sex, temperament: a.temperament, hardest: multi, usual, when: a.when, focus };
+    const profile: Profile = {
+      role: a.role,
+      sex: a.sex,
+      temperament: a.temperament,
+      hardest: multi,
+      usual,
+      when: a.when,
+      focus,
+      ...(a.check ? { check: a.check, checkScore: checkScore(a.check) } : {}),
+    };
     update((s) => {
       s.profile = profile;
       s.lesson = null;
@@ -168,6 +196,7 @@ export default function StartPage() {
       ["Personality", labelOf("temperament", a.temperament)],
       ["Hardest moments", multi.map((m) => labelOf("hardest", m)).filter(Boolean).join(", ")],
       ["What you usually do", labelOf("usual", a.usual)],
+      ["Quick check", a.check ? `${checkScore(a.check)} out of 100` : undefined],
       ["Reminder", a.when ? WHEN_PHRASE[a.when] : undefined],
     ];
     return (
@@ -201,7 +230,7 @@ export default function StartPage() {
 
   if (done) {
     const usual = a.usual ?? "freeze";
-    const f = FOCUS[usual];
+    const f = focusFor(usual, a.check);
     const who = a.sex === "boy" ? "boy" : a.sex === "girl" ? "girl" : "child";
     const kind = a.temperament ? `${TEMPER_WORD[a.temperament]} ` : "";
     const first = firstScenario(multi, store?.unlocked ?? false);
@@ -216,7 +245,9 @@ export default function StartPage() {
           <span className="label-caps text-amber-text">Your first focus</span>
           <h2 className="font-display text-[26px] leading-tight">{f.title}</h2>
           <p className="text-[17px] leading-snug">{FOCUS_TIPS[f.dim]}</p>
-          <p className="text-sm text-soft-ink">From your answers. Your practice will update it.</p>
+          <p className="text-sm text-soft-ink">
+            {a.check ? `From your quick check (${checkScore(a.check)}) and your answers.` : "From your answers."} Your practice will update it.
+          </p>
         </section>
         <section className="flex items-start gap-3 rounded-2xl bg-white p-5">
           <span className="shrink-0">
@@ -232,6 +263,103 @@ export default function StartPage() {
           Start my first practice <Arrow size={20} />
         </button>
         <p className="text-center text-[13px] text-muted">About 2 minutes. Free, no account, no email.</p>
+      </div>
+    );
+  }
+
+  const header = (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        aria-label="Previous question"
+        onClick={() => {
+          setCheckShown(false);
+          setI((n) => n - 1);
+        }}
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-white"
+      >
+        <Back size={20} />
+      </button>
+      <div className="flex-1">
+        <div className="h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={i + 1}>
+          <div className="h-full rounded-full bg-orange transition-all" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} />
+        </div>
+        <p className="mt-1 text-[13px] text-muted">
+          {i + 1} of {STEPS.length}
+        </p>
+      </div>
+    </div>
+  );
+
+  // The quick check: a real playground moment, scored by the same rubric as practice.
+  if (step.key === "check") {
+    const picked = CHECK_OPTIONS.find((o) => o.id === a.check);
+    const score = picked ? checkScore(picked.id) : 0;
+    const best = picked?.id === "b";
+    return (
+      <div className="mx-auto flex max-w-xl flex-col gap-4 py-4">
+        {header}
+        <h1 className="font-display anim-rise text-[28px] leading-tight">{step.q}</h1>
+        <div className="flex items-start gap-3 rounded-2xl bg-peach px-4 py-3.5">
+          <span className="shrink-0">
+            <Sam face="resisting" size={44} />
+          </span>
+          <p className="text-[16px] leading-snug">
+            Your {a.age ?? 3} year old won&apos;t leave the playground:{" "}
+            <b>&ldquo;{CHECK_OPENER}&rdquo;</b>
+          </p>
+        </div>
+
+        {!checkShown || !picked ? (
+          <div className="flex flex-col gap-2.5">
+            {CHECK_OPTIONS.map((o, oi) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => pick(o.id)}
+                style={{ animationDelay: `${60 + oi * 40}ms` }}
+                className="anim-rise flex min-h-14 items-start gap-3 rounded-2xl bg-white px-5 py-3.5 text-left text-[17px] font-semibold leading-snug transition duration-150 hover:shadow-[0_0_0_2px_#1C1608] active:scale-[0.98]"
+              >
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cream text-[14px] font-extrabold uppercase">{o.id}</span>
+                <span>&ldquo;{o.text}&rdquo;</span>
+              </button>
+            ))}
+            <p className="text-center text-[13px] text-muted">Tap one. You&apos;ll see its score right away.</p>
+          </div>
+        ) : (
+          <div className="anim-rise flex flex-col gap-3">
+            <div className="flex items-center gap-4 rounded-2xl bg-white p-4">
+              <ScoreRing value={score} size={84} />
+              <div>
+                <p className="text-[15px] text-muted">You picked</p>
+                <p className="text-[17px] font-semibold leading-snug">&ldquo;{picked.text}&rdquo;</p>
+              </div>
+            </div>
+            <p className={`rounded-2xl px-4 py-3 text-[16px] leading-snug ${best ? "bg-good-soft" : "bg-peach"}`}>
+              <b>{best ? "Strong answer. " : "Here's why. "}</b>
+              {picked.why}
+            </p>
+            {!best && (
+              <p className="rounded-2xl bg-white px-4 py-3 text-[15px] leading-snug">
+                <b>Try instead:</b> &ldquo;{CHECK_OPTIONS[1].text}&rdquo; <span className="text-muted">({checkScore("b")})</span>
+              </p>
+            )}
+            <a href={CDC[picked.cdc].url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 self-start text-[14px] font-semibold underline underline-offset-[3px]">
+              <Info size={15} /> {CDC[picked.cdc].name}
+            </a>
+            <button
+              type="button"
+              className="btn-primary h-14 text-lg"
+              onClick={() => {
+                setCheckShown(false);
+                setI((n) => n + 1);
+              }}
+            >
+              Continue <Arrow size={20} />
+            </button>
+            <p className="text-center text-[13px] text-muted">Scored by the same checks as every practice. It shapes your first focus.</p>
+          </div>
+        )}
       </div>
     );
   }

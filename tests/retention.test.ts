@@ -97,8 +97,26 @@ describe("monthly recap", () => {
 });
 
 describe("renewal date", () => {
-  it("rolls forward by month or year", () => {
+  it("follows the plan: trial renews after 7 days, then every 4 weeks; 12 weeks renews every 84 days", () => {
+    const since = "2026-11-01T10:00:00Z";
+    expect(nextRenewal(since, "trial", new Date("2026-11-03T00:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-08");
+    expect(nextRenewal(since, "trial", new Date("2026-11-10T00:00:00Z")).toISOString().slice(0, 10)).toBe("2026-12-06");
+    expect(nextRenewal(since, "four_week", new Date("2026-11-03T00:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-29");
+    expect(nextRenewal(since, "twelve_week", new Date("2026-11-03T00:00:00Z")).toISOString().slice(0, 10)).toBe("2027-01-24");
+  });
+
+  it("still handles Plus bought on the old monthly and yearly plans", () => {
     expect(nextRenewal("2026-09-20T10:00:00Z", "monthly", new Date("2026-11-15T00:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-20");
     expect(nextRenewal("2026-09-20T10:00:00Z", "annual", new Date("2026-11-15T00:00:00Z")).toISOString().slice(0, 10)).toBe("2027-09-20");
+  });
+});
+
+describe("plans", () => {
+  it("match the deck: $4.99 / $14.99 / $29.99 first, then $19.99 every 4 weeks or $39.99 every 12 weeks", async () => {
+    const { PLANS, termsLine } = await import("../lib/pricing");
+    expect(termsLine(PLANS.trial)).toBe("$4.99 for 7 days, then $19.99 every 4 weeks");
+    expect(termsLine(PLANS.four_week)).toBe("$14.99 today, then $19.99 every 4 weeks");
+    expect(termsLine(PLANS.twelve_week)).toBe("$29.99 today, then $39.99 every 12 weeks");
+    expect([PLANS.four_week.perMonth, PLANS.twelve_week.perMonth]).toEqual(["$21.66", "$14.44"]);
   });
 });

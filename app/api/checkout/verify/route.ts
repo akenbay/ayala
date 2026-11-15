@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { json } from "@/lib/server";
+import { DEFAULT_PLAN, isPlanId } from "@/lib/pricing";
 
 /** Confirms a finished test checkout so the browser can unlock Plus. */
 export async function GET(req: Request) {
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const session = await new Stripe(key).checkout.sessions.retrieve(id);
     const ok = session.status === "complete" && session.payment_status !== "unpaid";
-    const plan = session.metadata?.plan === "annual" ? "annual" : "monthly";
+    const plan = isPlanId(session.metadata?.plan) ? session.metadata?.plan : DEFAULT_PLAN;
     return json({ unlocked: ok, plan });
   } catch {
     return json({ unlocked: false }, 502);

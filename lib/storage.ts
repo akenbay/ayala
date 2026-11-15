@@ -5,6 +5,7 @@ import type { ScenarioId } from "./scenarios";
 import { SCENARIOS, SCENARIO_LIST } from "./scenarios";
 import { DIMENSIONS, DIMENSION_LABELS, type Dimension, type Scorecard } from "./rubric/types";
 import { buildScorecard } from "./rubric/score";
+import { isPlanId, renewalDays, type PlanId } from "./pricing";
 
 export type Age = 2 | 3 | 4;
 export type AttemptKind = "first" | "retry" | "transfer";
@@ -63,7 +64,8 @@ export type HelpUse = { id: string; situation: string; createdAt: string; helped
 
 export type PlusInfo = {
   since: string;
-  plan?: "monthly" | "annual";
+  /** Current plans, or "monthly" / "annual" from Plus bought before the plans changed. */
+  plan?: PlanId | "monthly" | "annual";
   checkoutSessionId?: string; // lets this device pause or manage the subscription
   demo?: boolean; // unlocked without Stripe
   pausedUntil?: string;
@@ -88,6 +90,8 @@ export type Profile = {
   usual?: "yell" | "give_in" | "threaten" | "freeze" | "calm";
   when?: "morning" | "after_daycare" | "dinner" | "bedtime" | "public";
   focus?: Dimension; // predicted weakest skill, until real practice says otherwise
+  check?: "a" | "b" | "c"; // the answer picked in the quiz's quick check
+  checkScore?: number; // its score from the real rubric
 };
 
 const KEY = "ayala:v1";
@@ -396,12 +400,19 @@ export function monthlyRecap(s: Pick<Store, "attempts" | "phrases" | "helpUses">
 }
 
 /** The next renewal date for a plan bought on `since`, after `now`. */
-export function nextRenewal(since: string, plan: "monthly" | "annual", now = new Date()): Date {
+export function nextRenewal(since: string, plan: NonNullable<PlusInfo["plan"]>, now = new Date()): Date {
   const d = new Date(since);
-  while (d.getTime() <= now.getTime()) {
-    if (plan === "annual") d.setFullYear(d.getFullYear() + 1);
-    else d.setMonth(d.getMonth() + 1);
+  if (!isPlanId(plan)) {
+    // Plans from before the change: calendar months or years.
+    while (d.getTime() <= now.getTime()) {
+      if (plan === "annual") d.setFullYear(d.getFullYear() + 1);
+      else d.setMonth(d.getMonth() + 1);
+    }
+    return d;
   }
+  const { first, every } = renewalDays(plan);
+  d.setDate(d.getDate() + first);
+  while (d.getTime() <= now.getTime()) d.setDate(d.getDate() + every);
   return d;
 }
 

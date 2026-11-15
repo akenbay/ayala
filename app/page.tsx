@@ -27,7 +27,7 @@ export default function Home() {
   const read = store?.lessonsRead ?? [];
   const plusLesson = !SCENARIOS[focusLesson.practice].free && !unlocked;
   const steps: { key: string; title: string; detail: string; done: boolean; go: () => void; cta: string }[] = [
-    { key: "quiz", title: "Tell us about your child", detail: "7 taps, about 60 seconds. Sam will act like your child.", done: hasProfile, go: () => router.push("/start"), cta: "Get my plan in 60 seconds" },
+    { key: "quiz", title: "Tell us about your child", detail: "8 taps, about 75 seconds, with a quick scored check. Sam will act like your child.", done: hasProfile, go: () => router.push("/start"), cta: "Get my plan in 75 seconds" },
     {
       key: "learn",
       title: `Learn: ${focusLesson.title.toLowerCase()}`,
@@ -273,7 +273,7 @@ export default function Home() {
           Judges: 3 minute tour
         </summary>
         <ol className="anim-fade-down mt-3 list-decimal space-y-2 rounded-2xl bg-white p-5 pl-9 text-left text-[15px] leading-relaxed text-soft-ink">
-          <li>Tap <b>Get my plan in 60 seconds</b>: 7 taps shape Sam (age, boy or girl, temperament), your first focus and a reminder time.</li>
+          <li>Tap <b>Get my plan in 75 seconds</b>: 8 taps shape Sam (age, boy or girl, temperament), your first focus and a reminder time. Tap 7 is a quick check: pick what you would say and see its real score before any price.</li>
           <li>Or open a lesson under <b>Learn</b>: a 2 minute CDC-based idea, then <b>Practice it</b> with the matching moment.</li>
           <li>Reply to Sam (type or tap the mic). Sam&apos;s face and status show how it&apos;s going; the practice ends when Sam goes along, melts down or gets their way.</li>
           <li><b>See my score</b>: one thing to keep, one to change (with its CDC page), your own words improved and re-scored. Retry, see the gain, then a new situation with no tips.</li>
